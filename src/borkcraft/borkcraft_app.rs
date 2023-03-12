@@ -1,44 +1,78 @@
 // emilk imports
-use crate::image_tools::*;
-use eframe::egui::{self, ScrollArea};
-use egui_extras::RetainedImage;
+use crate::{
+    eframe_tools::scroll_and_vert, increment::Inc, sessions::SessionInfo, try_access,
+    windows::client_windows::Loglet,
+};
+use eframe::egui::{self, Context, ScrollArea, Ui};
+use std::sync::{Arc, Mutex, Once};
+
+// GLOBALS
+static START: Once = Once::new();
 
 pub struct BorkCraft {
-    pub image: RetainedImage,
+    unique: Inc, // unique id
+    session_info: Arc<Mutex<SessionInfo>>,
 }
 
 impl Default for BorkCraft {
     fn default() -> Self {
         Self {
-            image: get_image().unwrap(),
+            unique: Inc::new(),
+            session_info: Arc::new(Mutex::new(SessionInfo::default())),
         }
     }
 }
 
-const LONG_BOI: &'static str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris malesuada, erat quis efficitur scelerisque, libero quam mattis eros, at malesuada est nunc quis est. Curabitur tincidunt a nisi nec bibendum. Nunc eget magna risus. Fusce elit quam, porttitor sed turpis eget, gravida egestas orci. Nulla placerat dui a orci fringilla vehicula. Curabitur rhoncus leo ut lacus condimentum, sed pellentesque nibh blandit. Aenean sit amet arcu a neque rhoncus laoreet. In ac metus sit amet mi ultricies tincidunt. Nulla imperdiet velit vestibulum aliquam volutpat. Morbi viverra id turpis at aliquet. Maecenas euismod turpis at maximus lobortis. Pellentesque semper risus in facilisis commodo. Nullam iaculis, leo ut auctor volutpat, tellus neque porta orci, vitae elementum mi diam vel nibh. Phasellus sagittis sodales orci, a viverra felis dapibus at. Cras sed nulla porttitor, euismod massa vitae, elementum ipsum.";
+fn init(session_info: &Arc<Mutex<SessionInfo>>) {
+    START.call_once(|| {
+        try_access(session_info, |mut access| {
+            for i in 0..10 {
+                let (kind, msg, time) = (
+                    format!("|kind:{}|", i),
+                    format!("|msg:{}|", i),
+                    format!("|time:{}|", i),
+                );
+                access.display.log.push(Loglet::new(kind, msg, time));
+            }
+        })
+        .unwrap();
+    });
+}
+
+fn display_session_time_left(ui: &mut Ui, ctx: Context, session_info: &Arc<Mutex<SessionInfo>>) {
+    try_access(&session_info, |mut access| {
+        access
+            .display
+            .show(ctx.clone(), "Session Time", |ui, _, log| {
+                scroll_and_vert(ui, "Session Time", |ui| {
+                    log.show(ui);
+                });
+            });
+        access.display.open_window_on_click(ui, "Session Time");
+    })
+    .unwrap();
+}
 
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("topboi").show(ctx, |ui| {
-            ui.label("Ryujin is too beautiful!");
+        init(&self.session_info);
+        egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
+            display_session_time_left(ui, ctx.clone(), &self.session_info);
+            // do work
         });
-        egui::SidePanel::left(1).show(ctx, |ui| {
-            ScrollArea::vertical().id_source("source").show(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    let unnecessarily_long_text = LONG_BOI.to_string();
-                    for i in 0..10 {
-                        let label = format!("{}): {}", i, unnecessarily_long_text);
-                        ui.label(label);
-                        ui.end_row();
-                    }
+
+        egui::SidePanel::left(self.unique.up()).show(ctx, |ui| {
+            ScrollArea::vertical()
+                .id_source(self.unique.up())
+                .show(ui, |_ui| {
+                    // do work
                 });
-            });
         });
-        egui::CentralPanel::default().show(ctx, |ui| {
-            display_retained_image(&self.image, ui);
+
+        egui::CentralPanel::default().show(ctx, |_ui| {
+            // do work
         });
-        //egui::SidePanel::right(2).show(ctx, |ui| {
-        //    display_retained_image(&self.image, ui);
-        //});
+
+        self.unique.reset();
     }
 }

@@ -1,0 +1,88 @@
+use crate::string_tools::*;
+use eframe::egui::{Context, Ui};
+
+#[derive(Default)]
+pub struct GenericWindow {
+    pub is_window_open: bool,
+    pub try_to_open_window: bool,
+    pub log: MessageLog,
+}
+
+impl GenericWindow {
+    pub fn default() -> Self {
+        Default::default()
+    }
+
+    pub fn open_window_on_click(&mut self, ui: &mut Ui, name: &str) {
+        eframe::egui::Grid::new(name).show(ui, |ui| {
+            if ui.button(name).clicked() {
+                self.is_window_open = !self.is_window_open
+            }
+            if self.try_to_open_window {
+                self.is_window_open = false;
+                self.try_to_open_window = false;
+            }
+            ui.end_row();
+        });
+    }
+
+    pub fn show(
+        &mut self,
+        ctx: Context,
+        name: &str,
+        f: impl Fn(&mut Ui, Context, &MessageLog),
+    ) -> bool {
+        let mut is_window_shut: bool = self.is_window_open;
+        eframe::egui::Window::new(name)
+            .resizable(true)
+            .open(&mut is_window_shut)
+            .show(&ctx, |ui| f(ui, ctx.clone(), &self.log));
+
+        self.is_window_open = is_window_shut;
+
+        is_window_shut
+    }
+}
+
+#[derive(Default)]
+pub struct MessageLog {
+    log: Vec<Loglet>,
+}
+
+impl MessageLog {
+    pub fn default() -> Self {
+        Default::default()
+    }
+    pub fn show(&self, ui: &mut Ui) {
+        for (index, loglet) in self.log.iter().enumerate() {
+            let formated_loglet = format!("{}):{}{}", index, newliner(1), loglet.format_loglet());
+            ui.label(formated_loglet);
+            ui.label(newliner(3));
+            ui.end_row()
+        }
+    }
+    pub fn push(&mut self, loglet: Loglet) {
+        self.log.push(loglet)
+    }
+}
+pub struct Loglet {
+    kind: String,
+    msg: String,
+    time: String,
+}
+
+impl Loglet {
+    pub fn new(kind: String, msg: String, time: String) -> Loglet {
+        Self { kind, msg, time }
+    }
+
+    pub fn format_loglet(&self) -> String {
+        let lyne = |elem: &String| -> String { format!("|{}{}{}|", newliner(1), tabber(1), elem) };
+        format!(
+            "Kind:{}Message:{}Time:{}",
+            lyne(&self.kind),
+            lyne(&self.msg),
+            lyne(&self.time)
+        )
+    }
+}
