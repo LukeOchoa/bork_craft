@@ -1,6 +1,7 @@
 mod windows;
 
 pub mod borkcraft;
+pub mod pages;
 
 pub use borkcraft::*;
 
@@ -61,6 +62,7 @@ pub mod string_tools {
         quick_maker(amount, "\t")
     }
 }
+
 pub mod err_tools {
     #[derive(Debug)]
     pub struct ErrorX {
@@ -93,11 +95,149 @@ pub mod err_tools {
     }
 }
 
+pub mod url_tools {
+    use serde::Serialize;
+
+    pub fn to_vec8(cereal: &impl Serialize) -> Vec<u8> {
+        serde_json::to_vec(cereal).unwrap()
+    }
+
+    pub enum Routes {
+        Login,
+        Logout,
+        AddNetherPortalText,
+        UpdateNetherPortalText,
+        SaveImageText,
+        SaveImage,
+        DeleteImage,
+        DeleteClientImage,
+        GetNetherPortalBunch,
+        GetNetherPortalImageNames,
+        GetNetherPortalImage,
+        AccessRights,
+        SessionTimeLeft,
+    }
+    impl Routes {
+        fn make(&self) -> String {
+            match self {
+                Routes::Login => "/login",
+                Routes::Logout => "/logout",
+                Routes::AddNetherPortalText => "/addnetherportaltext",
+                Routes::UpdateNetherPortalText => "/savenetherportaltextchanges",
+                Routes::SaveImageText => "/addnetherportalimagedetails",
+                Routes::SaveImage => "/saveimage",
+                Routes::DeleteImage => "/deleteimage",
+                Routes::DeleteClientImage => "/deleteimagefromclient",
+                Routes::GetNetherPortalBunch => "/getnetherportalstextinformation",
+                Routes::GetNetherPortalImage => "/getnetherportalimage",
+                Routes::GetNetherPortalImageNames => "/getnetherportalimagenames",
+                Routes::AccessRights => "/getaccessrights",
+                Routes::SessionTimeLeft => "/sessiontimeleft",
+            }
+            .to_string()
+        }
+    }
+    pub struct Urls {
+        url: String,
+    }
+    impl Urls {
+        pub fn default(route: Routes) -> String {
+            //! Provides a url with default port number and dns ipv4 thingy
+            Urls::new(aws_public_dns(), text_server_port()).url(route)
+        }
+        pub fn default_i(route: Routes) -> String {
+            Urls::new("localhost".to_string(), "1234".to_string()).url(route)
+        }
+        pub fn new(public_dns: String, port: String) -> Urls {
+            Urls {
+                url: format!("http://{}:{}", public_dns, port),
+            }
+        }
+        pub fn url(&self, route: Routes) -> String {
+            format!("{}{}", self.url, route.make())
+        }
+    }
+    pub fn aws_public_dns() -> String {
+        // format!("put ec2 aws ipv4/dns here!")
+        // format!("ec2-3-101-115-101.us-west-1.compute.amazonaws.com")
+        format!("localhost")
+    }
+    pub fn text_server_port() -> String {
+        format!("8334")
+    }
+}
+
 pub mod eframe_tools {
     use eframe::egui::{ScrollArea, Ui};
     pub fn scroll_and_vert(ui: &mut Ui, id: impl std::hash::Hash, f: impl Fn(&mut Ui)) {
         ScrollArea::vertical()
             .id_source(id)
             .show(ui, |ui| ui.horizontal_wrapped(|ui| f(ui)));
+    }
+    pub fn text_edit(ui: &mut Ui, writable: &mut String) {
+        ui.add(eframe::egui::TextEdit::singleline(writable));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        pages::login::LoginForm,
+        sessions::SessionInfo,
+        url_tools::{Routes, Urls},
+    };
+
+    #[test]
+    fn login_to_server() {
+        fn get_access_rights(
+            username: &String,
+            url: String,
+        ) -> Result<ureq::Response, ureq::Error> {
+            let url = &format!("{}?username={}", url, username);
+            let result = ureq::get(url).call();
+
+            result
+        }
+        let login_form = &LoginForm::new("luke@gmail.com", "1234", "");
+        // send LoginForm to Server
+        let response = ureq::post(&Urls::default(Routes::Login))
+            .send_bytes(&serde_json::to_vec(login_form).unwrap())
+            .unwrap();
+
+        // Convert Response and assign it to session_info(SessionInfo)
+        let _sessinfo = SessionInfo::response_to_session_info(response).unwrap();
+
+        let response =
+            get_access_rights(&login_form.username, Urls::default(Routes::AccessRights)).unwrap();
+        let mut hasher: std::collections::HashMap<String, Vec<String>> =
+            serde_json::from_str(&response.into_string().unwrap()).unwrap();
+        let vecker = hasher.remove("access_rights").unwrap();
+        println!("{:?}", vecker);
+        panic!("forced panic")
+
+        //let sesstime = format!(
+        //    "
+        //sessiontime key:{}
+        //sessiontime time:
+        //hour: {}
+        //minute: {}
+        //second: {}
+        //",
+        //    sessinfo.session_time.key,
+        //    sessinfo.session_time.time.hour,
+        //    sessinfo.session_time.time.minute,
+        //    sessinfo.session_time.time.second
+        //);
+        //let x = format!(
+        //    "
+        //    sessiontime: |{}|\n
+        //    is logged in:{}
+        //    access_rights: |{:?}|
+        //",
+        //    sesstime, sessinfo.is_logged_in, sessinfo.access_rights
+        //);
+
+        //println!("{}", x);
+        //panic!("force panic")
     }
 }

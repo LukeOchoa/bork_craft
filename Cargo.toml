@@ -13,3 +13,13 @@ egui_extras = { version = "0.19.0", features = ["image"]}
 
 # Others
 image = { version = "0.24", features = ["jpeg", "png"] }
+
+
+# serde
+serde = { version = "1.0" }
+serde_derive = "1.0"
+serde_json = "1.0"
+
+
+# http dependencies
+ureq = { version = "2.5.0", features = ["json"] }

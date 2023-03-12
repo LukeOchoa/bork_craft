@@ -1,7 +1,11 @@
 // emilk imports
 use crate::{
-    eframe_tools::scroll_and_vert, increment::Inc, sessions::SessionInfo, try_access,
-    windows::client_windows::Loglet,
+    eframe_tools::scroll_and_vert,
+    increment::Inc,
+    pages::login::{login_page, LoginForm},
+    sessions::SessionInfo,
+    try_access,
+    windows::client_windows::{GenericWindow, Loglet, GN},
 };
 use eframe::egui::{self, Context, ScrollArea, Ui};
 use std::sync::{Arc, Mutex, Once};
@@ -11,14 +15,18 @@ static START: Once = Once::new();
 
 pub struct BorkCraft {
     unique: Inc, // unique id
+    login_form: LoginForm,
     session_info: Arc<Mutex<SessionInfo>>,
+    err_msg: Arc<Mutex<GenericWindow>>,
 }
 
 impl Default for BorkCraft {
     fn default() -> Self {
         Self {
             unique: Inc::new(),
+            login_form: LoginForm::default(),
             session_info: Arc::new(Mutex::new(SessionInfo::default())),
+            err_msg: Arc::new(Mutex::new(GenericWindow::new("Error Messages"))),
         }
     }
 }
@@ -33,39 +41,49 @@ fn init(session_info: &Arc<Mutex<SessionInfo>>) {
                     format!("|time:{}|", i),
                 );
                 access.display.log.push(Loglet::new(kind, msg, time));
+                access.display.name("Session Time");
             }
         })
         .unwrap();
     });
 }
 
-fn display_session_time_left(ui: &mut Ui, ctx: Context, session_info: &Arc<Mutex<SessionInfo>>) {
+fn display_session_time_left(
+    session_info: &Arc<Mutex<SessionInfo>>,
+    id: i64,
+    ui: &mut Ui,
+    ctx: Context,
+) {
     try_access(&session_info, |mut access| {
-        access
-            .display
-            .show(ctx.clone(), "Session Time", |ui, _, log| {
-                scroll_and_vert(ui, "Session Time", |ui| {
-                    log.show(ui);
-                });
+        let name = &access.display.namae();
+        access.display.show(ctx.clone(), |ui, _, log| {
+            scroll_and_vert(ui, id, |ui| {
+                log.show(ui);
             });
-        access.display.open_window_on_click(ui, "Session Time");
+        });
+        access.display.open_window_on_click(ui, name);
     })
     .unwrap();
+}
+fn display_err_msgs(err_msg: &Arc<Mutex<GenericWindow>>, id: i64, ui: &mut Ui, ctx: Context) {
+    GenericWindow::display_generic_window(GN::Tau(err_msg), id, ui, ctx.clone());
 }
 
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         init(&self.session_info);
         egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
-            display_session_time_left(ui, ctx.clone(), &self.session_info);
-            // do work
+            ui.horizontal(|ui| {
+                display_session_time_left(&self.session_info, self.unique.up(), ui, ctx.clone());
+                display_err_msgs(&self.err_msg, self.unique.up(), ui, ctx.clone());
+            });
         });
 
         egui::SidePanel::left(self.unique.up()).show(ctx, |ui| {
             ScrollArea::vertical()
                 .id_source(self.unique.up())
-                .show(ui, |_ui| {
-                    // do work
+                .show(ui, |ui| {
+                    login_page(&mut self.session_info, &mut self.login_form, ui);
                 });
         });
 
