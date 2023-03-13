@@ -4,6 +4,7 @@ pub mod borkcraft;
 pub mod pages;
 
 pub use borkcraft::*;
+use chrono::{Timelike, Utc};
 
 mod increment {
     pub struct Inc {
@@ -31,7 +32,7 @@ mod increment {
 type MagicError = Box<dyn std::error::Error>;
 fn try_access<T>(
     try_me: &std::sync::Arc<std::sync::Mutex<T>>,
-    mut f: impl FnMut(std::sync::MutexGuard<T>),
+    f: impl FnOnce(std::sync::MutexGuard<T>),
 ) -> Result<(), MagicError> {
     match try_me.try_lock() {
         Ok(access) => {
@@ -43,6 +44,32 @@ fn try_access<T>(
             "try_access was used currently, try again later...",
         )),
     }
+}
+
+fn _try_access_experimental<T>(
+    try_me: &std::sync::Arc<std::sync::Mutex<T>>,
+    f: impl FnOnce(std::sync::MutexGuard<T>),
+) -> Result<std::sync::Arc<std::sync::Mutex<T>>, MagicError> {
+    match try_me.try_lock() {
+        Ok(access) => {
+            f(access);
+            return Ok(std::sync::Arc::clone(try_me));
+            // Do magic
+        }
+        Err(_) => Err(crate::err_tools::ErrorX::new_box(
+            "try_access was used currently, try again later...",
+        )),
+    }
+}
+
+fn time_of_day() -> String {
+    let time = Utc::now();
+    format!(
+        "Hour:|{}| Minute:|{}| Second:|{}|",
+        time.hour(),
+        time.minute(),
+        time.second()
+    )
 }
 
 pub mod string_tools {

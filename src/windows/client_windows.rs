@@ -26,6 +26,9 @@ impl GenericWindow {
     pub fn namae(&self) -> String {
         self.name.to_string()
     }
+    pub fn open_window(&mut self) {
+        self.is_window_open = true;
+    }
 
     pub fn open_window_on_click(&mut self, ui: &mut Ui, name: &str) {
         eframe::egui::Grid::new(name).show(ui, |ui| {
@@ -62,12 +65,29 @@ impl GenericWindow {
     }
     pub fn display_generic_window(gn: GN, id: i64, ui: &mut Ui, ctx: Context) {
         match gn {
-            GN::Tau(generic_window) => try_access(generic_window, |mut access| {
-                Self::helper(&mut access, id, ui, ctx.clone());
-            })
-            .unwrap(),
+            GN::Tau(am_generic_window) => {
+                _ = try_access(am_generic_window, |mut access| {
+                    Self::helper(&mut access, id, ui, ctx.clone());
+                })
+            }
             GN::Green(generic_window) => {
                 Self::helper(generic_window, id, ui, ctx);
+            }
+        }
+    }
+    pub fn push_loglet(gn: GN, loglet: Loglet) {
+        //! Push a String-to-MessageLog to the back of the Log
+        //! And Open the window
+        match gn {
+            GN::Tau(am_generic_window) => {
+                _ = try_access(am_generic_window, |mut access| {
+                    access.log.push(loglet);
+                    access.open_window();
+                })
+            }
+            GN::Green(generic_window) => {
+                generic_window.log.push(loglet);
+                generic_window.open_window();
             }
         }
     }
@@ -105,8 +125,12 @@ pub struct Loglet {
 }
 
 impl Loglet {
-    pub fn new(kind: String, msg: String, time: String) -> Loglet {
-        Self { kind, msg, time }
+    pub fn new(kind: &str, msg: &str, time: &str) -> Loglet {
+        Self {
+            kind: kind.to_string(),
+            msg: msg.to_string(),
+            time: time.to_string(),
+        }
     }
 
     pub fn format_loglet(&self) -> String {

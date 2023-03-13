@@ -1,13 +1,15 @@
 use crate::{
     eframe_tools::text_edit,
     sessions::{SessionInfo, ThreadSessionInfo},
-    try_access,
+    time_of_day, try_access,
     url_tools::{Routes, Urls},
+    windows::client_windows::{GenericWindow, Loglet, GN},
     MagicError,
 };
 use eframe::{egui::Ui, epaint::ahash::HashMap};
 use serde_derive::Serialize;
 use serde_json::to_vec;
+use std::sync::{Arc, Mutex};
 
 type AccessRights = Vec<String>;
 
@@ -79,7 +81,12 @@ fn convert_access_rights_resp(response: ureq::Response) -> Result<Vec<String>, M
     Ok(hasher.remove("access_rights").unwrap())
 }
 
-pub fn login_page(session_info: &ThreadSessionInfo, login_form: &mut LoginForm, ui: &mut Ui) {
+pub fn login_page(
+    session_info: &ThreadSessionInfo,
+    login_form: &mut LoginForm,
+    ui: &mut Ui,
+    err_msg: &Arc<Mutex<GenericWindow>>,
+) {
     _ = try_access(session_info, |mut sess_info| {
         if !sess_info.is_logged_in {
             show_login_form(ui, login_form);
@@ -89,24 +96,11 @@ pub fn login_page(session_info: &ThreadSessionInfo, login_form: &mut LoginForm, 
                 Ok(sessinfo) => {
                     *sess_info = sessinfo;
                 }
-                Err(_error) => {}
+                Err(error) => GenericWindow::push_loglet(
+                    GN::Tau(err_msg),
+                    Loglet::new("Error", &error.to_string(), &time_of_day()),
+                ),
             }
         }
     });
 }
-
-//let subfn = || -> Result<(), MagicError> {
-//    // send LoginForm to Server
-//    let response = ureq::post(&Urls::default(Routes::Login))
-//        .send_bytes(&to_vec(&login_form).unwrap())?;
-
-//    // Convert Response and assign it to session_info(SessionInfo)
-//    *sess_info = SessionInfo::response_to_session_info(response)?;
-
-//    // get access rights
-//    let response =
-//        get_access_rights(&login_form.username, Urls::default(Routes::AccessRights))?;
-//    sess_info.access_rights = convert_access_rights_resp(response)?;
-
-//    Ok(())
-//};

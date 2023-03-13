@@ -33,18 +33,23 @@ impl Default for BorkCraft {
 
 fn init(session_info: &Arc<Mutex<SessionInfo>>) {
     START.call_once(|| {
-        try_access(session_info, |mut access| {
-            for i in 0..10 {
-                let (kind, msg, time) = (
-                    format!("|kind:{}|", i),
-                    format!("|msg:{}|", i),
-                    format!("|time:{}|", i),
-                );
-                access.display.log.push(Loglet::new(kind, msg, time));
-                access.display.name("Session Time");
+        // Use an infinite wait, eg block on this thread until we get what we need.
+        // I think i have to wrap this in an async/promise to tell the ui to use .spinner until we have what we need
+        loop {
+            if let Ok(_) = try_access(session_info, |mut access| {
+                for i in 0..10 {
+                    let (kind, msg, time) = (
+                        format!("|kind:{}|", i),
+                        format!("|msg:{}|", i),
+                        format!("|time:{}|", i),
+                    );
+                    access.display.log.push(Loglet::new(&kind, &msg, &time));
+                    access.display.name("Session Time");
+                }
+            }) {
+                break;
             }
-        })
-        .unwrap();
+        }
     });
 }
 
@@ -54,7 +59,7 @@ fn display_session_time_left(
     ui: &mut Ui,
     ctx: Context,
 ) {
-    try_access(&session_info, |mut access| {
+    _ = try_access(&session_info, |mut access| {
         let name = &access.display.namae();
         access.display.show(ctx.clone(), |ui, _, log| {
             scroll_and_vert(ui, id, |ui| {
@@ -63,7 +68,6 @@ fn display_session_time_left(
         });
         access.display.open_window_on_click(ui, name);
     })
-    .unwrap();
 }
 fn display_err_msgs(err_msg: &Arc<Mutex<GenericWindow>>, id: i64, ui: &mut Ui, ctx: Context) {
     GenericWindow::display_generic_window(GN::Tau(err_msg), id, ui, ctx.clone());
@@ -83,7 +87,12 @@ impl eframe::App for BorkCraft {
             ScrollArea::vertical()
                 .id_source(self.unique.up())
                 .show(ui, |ui| {
-                    login_page(&mut self.session_info, &mut self.login_form, ui);
+                    login_page(
+                        &mut self.session_info,
+                        &mut self.login_form,
+                        ui,
+                        &mut self.err_msg,
+                    );
                 });
         });
 
