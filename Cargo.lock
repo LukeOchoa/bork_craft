@@ -118,9 +118,11 @@ dependencies = [
  "eframe",
  "egui_extras",
  "image",
+ "poll-promise",
  "serde",
  "serde_derive",
  "serde_json",
+ "tokio",
  "ureq",
 ]
 
@@ -1549,6 +1551,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "poll-promise"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcf2a02372dfae23c9c01267fb296b8a3413bb4e45fbd589c3ac73c6dcfbb305"
+dependencies = [
+ "static_assertions",
+ "tokio",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1844,6 +1856,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "str-buf"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1965,6 +1983,18 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "tokio"
+version = "1.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03201d01c3c27a29c8a5cee5b55a93ddae1ccf6f08f65365c2c918f8c1b76f64"
+dependencies = [
+ "autocfg",
+ "num_cpus",
+ "pin-project-lite",
+ "windows-sys 0.45.0",
+]
 
 [[package]]
 name = "toml_datetime"

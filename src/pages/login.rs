@@ -1,15 +1,21 @@
 use crate::{
     eframe_tools::text_edit,
-    sessions::{SessionInfo, ThreadSessionInfo},
-    time_of_day, try_access,
+    err_tools::ErrorX,
+    sessions::SessionInfo,
+    time_of_day,
     url_tools::{Routes, Urls},
-    windows::client_windows::{GenericWindow, Loglet, GN},
+    windows::{
+        client_windows::{GenericWindow, Loglet},
+        error_messages::ErrorMessage,
+    },
     MagicError,
 };
-use eframe::{egui::Ui, epaint::ahash::HashMap};
+
 use serde_derive::Serialize;
 use serde_json::to_vec;
-use std::sync::{Arc, Mutex};
+
+use eframe::egui::Ui;
+use std::{collections::HashMap, sync::mpsc::Sender};
 
 type AccessRights = Vec<String>;
 
@@ -18,19 +24,34 @@ pub struct LoginForm {
     pub username: String,
     pub password: String,
     pub session_key: String,
+    #[serde(skip_serializing)]
+    pub sender: Option<Sender<String>>,
 }
 
 impl LoginForm {
     pub fn default() -> Self {
         Default::default()
     }
-    pub fn new(u: &str, p: &str, s: &str) -> LoginForm {
-        let x = String::from;
-        LoginForm {
-            username: x(u),
-            password: x(p),
-            session_key: x(s),
+
+    pub fn send(&self, key: String) -> Option<()> {
+        //! Send key to through Sender<>
+        //! Returns None if there is no Sender
+        //!
+        //! This uses an infinite loop so it is possible it will block the thread
+        //! IF session thread is stuck on a network request
+        let sender = self.sender.as_ref()?;
+        loop {
+            if let Ok(_) = sender.send(key.clone()) {
+                break;
+            }
         }
+        Some(())
+    }
+
+    pub fn try_send(&self, key: String) -> Result<(), MagicError> {
+        let sender = self.sender.as_ref().ok_or(ErrorX::new_box("No Sender"))?;
+        sender.send(key)?;
+        Ok(())
     }
 }
 
@@ -49,8 +70,9 @@ fn handle_login(login_form: &LoginForm) -> Result<SessionInfo, MagicError> {
     let response =
         ureq::post(&Urls::default(Routes::Login)).send_bytes(&to_vec(&login_form).unwrap())?;
 
-    // Convert Response
-    let sess_info = SessionInfo::response_to_session_info(response)?;
+    // Convert Response & Assign data
+    let session_time = response.into_json()?;
+    let sess_info = SessionInfo::session_time_to_session_info(session_time)?;
 
     // get access rights
     let response = get_access_rights(&login_form.username, Urls::default(Routes::AccessRights))?;
@@ -62,6 +84,10 @@ fn handle_login(login_form: &LoginForm) -> Result<SessionInfo, MagicError> {
         access_rights,
         ..sess_info
     };
+
+    // Send the new key to the looping session thread; This is an endless loop interally... Reconsider in the future
+    login_form.send(sess_info.key.clone()).unwrap();
+    println!("SENT!");
 
     Ok(sess_info)
 }
@@ -82,25 +108,26 @@ fn convert_access_rights_resp(response: ureq::Response) -> Result<Vec<String>, M
 }
 
 pub fn login_page(
-    session_info: &ThreadSessionInfo,
+    session_info: &mut SessionInfo,
     login_form: &mut LoginForm,
     ui: &mut Ui,
-    err_msg: &Arc<Mutex<GenericWindow>>,
+    err_msg: &mut ErrorMessage,
 ) {
-    _ = try_access(session_info, |mut sess_info| {
-        if !sess_info.is_logged_in {
-            show_login_form(ui, login_form);
-        }
-        if ui.button("Login").clicked() {
-            match handle_login(login_form) {
-                Ok(sessinfo) => {
-                    *sess_info = sessinfo;
-                }
-                Err(error) => GenericWindow::push_loglet(
-                    GN::Tau(err_msg),
-                    Loglet::new("Error", &error.to_string(), &time_of_day()),
-                ),
+    // Show login form to screen
+    if !session_info.is_logged_in {
+        show_login_form(ui, login_form);
+    }
+
+    // On button click, Try to login to by server: Ok() => Update session, Err() => Update Err Log
+    if ui.button("Login").clicked() {
+        match handle_login(login_form) {
+            Ok(si) => {
+                session_info.consume(si);
             }
+            Err(error) => GenericWindow::push_loglet(
+                &mut err_msg.display,
+                Loglet::new("Error", &error.to_string(), &time_of_day()),
+            ),
         }
-    });
+    }
 }

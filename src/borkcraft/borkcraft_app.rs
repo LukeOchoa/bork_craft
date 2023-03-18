@@ -1,14 +1,24 @@
 // emilk imports
 use crate::{
-    eframe_tools::scroll_and_vert,
+    //eframe_tools::scroll_and_vert,
     increment::Inc,
     pages::login::{login_page, LoginForm},
-    sessions::SessionInfo,
-    try_access,
-    windows::client_windows::{GenericWindow, Loglet, GN},
+    sessions::{current_session_time, SessionInfo, SessionTime},
+    time_of_day,
+    //url_tools::{Routes, Urls},
+    windows::{
+        client_windows::{GenericWindow, Loglet},
+        error_messages::ErrorMessage,
+    },
 };
 use eframe::egui::{self, Context, ScrollArea, Ui};
-use std::sync::{Arc, Mutex, Once};
+// use tokio::runtime::Runtime;
+// use std::marker::Send;
+// use poll_promise::Promise;
+use std::sync::{
+    mpsc::{channel, Receiver, Sender},
+    Once,
+};
 
 // GLOBALS
 static START: Once = Once::new();
@@ -16,70 +26,99 @@ static START: Once = Once::new();
 pub struct BorkCraft {
     unique: Inc, // unique id
     login_form: LoginForm,
-    session_info: Arc<Mutex<SessionInfo>>,
-    err_msg: Arc<Mutex<GenericWindow>>,
+    session_info: SessionInfo,
+    err_msg: ErrorMessage,
 }
 
 impl Default for BorkCraft {
     fn default() -> Self {
+        // Session Information
+        let (sender, receiver) = channel();
+        let session_info = SessionInfo::new(Some(receiver));
+
+        // Login Form
+        let (key_sender, key_receiver) = channel();
+        let login_form = LoginForm {
+            sender: Some(key_sender),
+            ..LoginForm::default()
+        };
+
+        // Error Message
+        let err_msg = ErrorMessage::new();
+
+        START.call_once(|| {
+            real_init(sender, key_receiver, err_msg.sender_clone());
+        });
         Self {
             unique: Inc::new(),
-            login_form: LoginForm::default(),
-            session_info: Arc::new(Mutex::new(SessionInfo::default())),
-            err_msg: Arc::new(Mutex::new(GenericWindow::new("Error Messages"))),
+            login_form,
+            session_info,
+            err_msg,
         }
     }
 }
 
-fn init(session_info: &Arc<Mutex<SessionInfo>>) {
-    START.call_once(|| {
-        // Use an infinite wait, eg block on this thread until we get what we need.
-        // I think i have to wrap this in an async/promise to tell the ui to use .spinner until we have what we need
+fn real_init(
+    session_info_sender: Sender<(SessionTime, Loglet)>,
+    key_receiver: Receiver<String>,
+    err_sender: Sender<Loglet>,
+) {
+    // Consider give this thread a ctx? so that i can wake up the ui thread on an error or on a session update
+    std::thread::spawn(move || {
+        let mut key = String::default();
+        //loop {
+        //    if let Ok(new_key) = key_receiver.try_recv() {
+        //        key = new_key;
+        //        println!("received");
+        //        break;
+        //    }
+        //}
         loop {
-            if let Ok(_) = try_access(session_info, |mut access| {
-                for i in 0..10 {
-                    let (kind, msg, time) = (
-                        format!("|kind:{}|", i),
-                        format!("|msg:{}|", i),
-                        format!("|time:{}|", i),
-                    );
-                    access.display.log.push(Loglet::new(&kind, &msg, &time));
-                    access.display.name("Session Time");
-                }
-            }) {
-                break;
+            if let Ok(new_key) = key_receiver.try_recv() {
+                key = new_key;
+                println!("received");
             }
+
+            //if let Err(err) = current_session_time(&session_info_sender, key.clone()) {
+            //    err_sender
+            //        .send(Loglet::new("Error", &err.to_string(), &time_of_day()))
+            //        .unwrap();
+            //};
+            match current_session_time(&session_info_sender, key.clone()) {
+                Ok(maybe_new_key) => key = maybe_new_key,
+                Err(err) => err_sender
+                    .send(Loglet::new("Error", &err.to_string(), &time_of_day()))
+                    .unwrap(),
+            }
+
+            std::thread::sleep(std::time::Duration::from_secs(3));
         }
     });
 }
 
-fn display_session_time_left(
-    session_info: &Arc<Mutex<SessionInfo>>,
-    id: i64,
-    ui: &mut Ui,
-    ctx: Context,
-) {
-    _ = try_access(&session_info, |mut access| {
-        let name = &access.display.namae();
-        access.display.show(ctx.clone(), |ui, _, log| {
-            scroll_and_vert(ui, id, |ui| {
-                log.show(ui);
-            });
-        });
-        access.display.open_window_on_click(ui, name);
-    })
+fn display_session_time_left(session_info: &mut SessionInfo, id: i64, ui: &mut Ui, ctx: Context) {
+    // Set name and show: Button, GenericWindow Glory
+    session_info.display.namae("Session Time");
+    GenericWindow::display_generic_window(&mut session_info.display, id, ui, ctx);
 }
-fn display_err_msgs(err_msg: &Arc<Mutex<GenericWindow>>, id: i64, ui: &mut Ui, ctx: Context) {
-    GenericWindow::display_generic_window(GN::Tau(err_msg), id, ui, ctx.clone());
+
+fn display_err_msgs(err_msg: &mut ErrorMessage, id: i64, ui: &mut Ui, ctx: Context) {
+    err_msg.display.namae("Error Messages");
+    GenericWindow::display_generic_window(&mut err_msg.display, id, ui, ctx);
 }
 
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        init(&self.session_info);
         egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                display_session_time_left(&self.session_info, self.unique.up(), ui, ctx.clone());
-                display_err_msgs(&self.err_msg, self.unique.up(), ui, ctx.clone());
+                display_session_time_left(
+                    &mut self.session_info,
+                    self.unique.up(),
+                    ui,
+                    ctx.clone(),
+                );
+
+                display_err_msgs(&mut self.err_msg, self.unique.up(), ui, ctx.clone());
             });
         });
 
@@ -100,6 +139,10 @@ impl eframe::App for BorkCraft {
             // do work
         });
 
+        // update
         self.unique.reset();
+        self.err_msg.try_update_log();
+        self.session_info.try_update();
+        ctx.request_repaint();
     }
 }

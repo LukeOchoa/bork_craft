@@ -30,7 +30,14 @@ mod increment {
 }
 
 type MagicError = Box<dyn std::error::Error>;
-fn try_access<T>(
+
+fn _get_tokio_runtime() -> tokio::runtime::Runtime {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    _ = rt.enter();
+    rt
+}
+
+fn _try_access<T>(
     try_me: &std::sync::Arc<std::sync::Mutex<T>>,
     f: impl FnOnce(std::sync::MutexGuard<T>),
 ) -> Result<(), MagicError> {
@@ -63,17 +70,13 @@ fn _try_access_experimental<T>(
 }
 
 fn time_of_day() -> String {
+    // "Hour:{} Minute:{} Second:{}",
     let time = Utc::now();
-    format!(
-        "Hour:|{}| Minute:|{}| Second:|{}|",
-        time.hour(),
-        time.minute(),
-        time.second()
-    )
+    format!("{}:{} -- {}", time.hour(), time.minute(), time.second())
 }
 
 pub mod string_tools {
-    fn quick_maker(amount: i32, character: &str) -> String {
+    fn quick_maker(amount: usize, character: &str) -> String {
         let mut s = String::default();
         for _ in 0..amount {
             s = format!("{}{}", s, character)
@@ -81,11 +84,11 @@ pub mod string_tools {
         s
     }
 
-    pub fn newliner(amount: i32) -> String {
+    pub fn newliner(amount: usize) -> String {
         quick_maker(amount, "\n")
     }
 
-    pub fn tabber(amount: i32) -> String {
+    pub fn tabber(amount: usize) -> String {
         quick_maker(amount, "\t")
     }
 }
@@ -195,8 +198,9 @@ pub mod url_tools {
 }
 
 pub mod eframe_tools {
+    use crate::string_tools::newliner;
     use eframe::egui::{ScrollArea, Ui};
-    pub fn scroll_and_vert(ui: &mut Ui, id: impl std::hash::Hash, f: impl Fn(&mut Ui)) {
+    pub fn scroll_and_vert(ui: &mut Ui, id: impl std::hash::Hash, f: impl FnOnce(&mut Ui)) {
         ScrollArea::vertical()
             .id_source(id)
             .show(ui, |ui| ui.horizontal_wrapped(|ui| f(ui)));
@@ -204,67 +208,46 @@ pub mod eframe_tools {
     pub fn text_edit(ui: &mut Ui, writable: &mut String) {
         ui.add(eframe::egui::TextEdit::singleline(writable));
     }
+    pub fn space_vert(amount: usize, ui: &mut Ui) {
+        //! Add vertical space using newlines
+        ui.label(format!("{}", newliner(amount)));
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        pages::login::LoginForm,
-        sessions::SessionInfo,
-        url_tools::{Routes, Urls},
-    };
+    //use super::{
+    //    pages::login::LoginForm,
+    //    sessions::SessionInfo,
+    //    url_tools::{Routes, Urls},
+    //};
 
-    #[test]
-    fn login_to_server() {
-        fn get_access_rights(
-            username: &String,
-            url: String,
-        ) -> Result<ureq::Response, ureq::Error> {
-            let url = &format!("{}?username={}", url, username);
-            let result = ureq::get(url).call();
+    //#[test]
+    //fn login_to_server() {
+    //    fn get_access_rights(
+    //        username: &String,
+    //        url: String,
+    //    ) -> Result<ureq::Response, ureq::Error> {
+    //        let url = &format!("{}?username={}", url, username);
+    //        let result = ureq::get(url).call();
 
-            result
-        }
-        let login_form = &LoginForm::new("luke@gmail.com", "1234", "");
-        // send LoginForm to Server
-        let response = ureq::post(&Urls::default(Routes::Login))
-            .send_bytes(&serde_json::to_vec(login_form).unwrap())
-            .unwrap();
+    //        result
+    //    }
+    //    let login_form = &LoginForm{ username: String::from("luke@gmail.com"), String::from("1234"), String::from(""), sender: None);
+    //    // send LoginForm to Server
+    //    let response = ureq::post(&Urls::default(Routes::Login))
+    //        .send_bytes(&serde_json::to_vec(login_form).unwrap())
+    //        .unwrap();
 
-        // Convert Response and assign it to session_info(SessionInfo)
-        let _sessinfo = SessionInfo::response_to_session_info(response).unwrap();
+    //    // Convert Response and assign it to session_info(SessionInfo)
+    //    let _sessinfo = SessionInfo::response_to_session_info(response).unwrap();
 
-        let response =
-            get_access_rights(&login_form.username, Urls::default(Routes::AccessRights)).unwrap();
-        let mut hasher: std::collections::HashMap<String, Vec<String>> =
-            serde_json::from_str(&response.into_string().unwrap()).unwrap();
-        let vecker = hasher.remove("access_rights").unwrap();
-        println!("{:?}", vecker);
-        panic!("forced panic")
-
-        //let sesstime = format!(
-        //    "
-        //sessiontime key:{}
-        //sessiontime time:
-        //hour: {}
-        //minute: {}
-        //second: {}
-        //",
-        //    sessinfo.session_time.key,
-        //    sessinfo.session_time.time.hour,
-        //    sessinfo.session_time.time.minute,
-        //    sessinfo.session_time.time.second
-        //);
-        //let x = format!(
-        //    "
-        //    sessiontime: |{}|\n
-        //    is logged in:{}
-        //    access_rights: |{:?}|
-        //",
-        //    sesstime, sessinfo.is_logged_in, sessinfo.access_rights
-        //);
-
-        //println!("{}", x);
-        //panic!("force panic")
-    }
+    //    let response =
+    //        get_access_rights(&login_form.username, Urls::default(Routes::AccessRights)).unwrap();
+    //    let mut hasher: std::collections::HashMap<String, Vec<String>> =
+    //        serde_json::from_str(&response.into_string().unwrap()).unwrap();
+    //    let vecker = hasher.remove("access_rights").unwrap();
+    //    println!("{:?}", vecker);
+    //    panic!("forced panic")
+    //}
 }
