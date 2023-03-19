@@ -66,24 +66,11 @@ fn real_init(
     // Consider give this thread a ctx? so that i can wake up the ui thread on an error or on a session update
     std::thread::spawn(move || {
         let mut key = String::default();
-        //loop {
-        //    if let Ok(new_key) = key_receiver.try_recv() {
-        //        key = new_key;
-        //        println!("received");
-        //        break;
-        //    }
-        //}
         loop {
             if let Ok(new_key) = key_receiver.try_recv() {
                 key = new_key;
                 println!("received");
             }
-
-            //if let Err(err) = current_session_time(&session_info_sender, key.clone()) {
-            //    err_sender
-            //        .send(Loglet::new("Error", &err.to_string(), &time_of_day()))
-            //        .unwrap();
-            //};
             match current_session_time(&session_info_sender, key.clone()) {
                 Ok(maybe_new_key) => key = maybe_new_key,
                 Err(err) => err_sender
