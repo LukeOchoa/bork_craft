@@ -119,17 +119,10 @@ pub struct TimeTime {
 
 impl TimeTime {
     pub fn formatted(&self) -> String {
-        //let line = |name, string| format!("{}{}", name, string);
         format!(
             "Session Time Left: ({}:{} -- {})",
             self.hour, self.minute, self.second
         )
-        //format!(
-        //    "{}{}{}",
-        //    line("hour(s)", &self.hour),
-        //    line("minute(s)", &self.minute),
-        //    line("second(s)", &self.second)
-        //)
     }
 }
 
@@ -146,20 +139,19 @@ pub fn current_session_time(
     sender: &Sender<(SessionTime, Loglet)>,
     validation_key: String,
 ) -> Result<String, MagicError> {
-    println!("SESSION KEY: {}", validation_key); // Session Key is never properly updated? why
-
     // Get the sesssion time from the server
     let response = fetch_session_time(&validation_key)?;
 
     // Convert response to time object
     let session_time: SessionTime = response.into_json()?;
 
-    // Create information to be sent
+    // Create information to be sent by (Sender)
     let loglet = Loglet::new("Update", &session_time.time.formatted(), &time_of_day());
     let validation_key = session_time.key.clone();
 
     // Send
     sender.send((session_time, loglet)).unwrap();
 
+    // Return Key to be used on next iteration of calling scope's loop
     Ok(validation_key)
 }

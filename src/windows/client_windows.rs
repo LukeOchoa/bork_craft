@@ -143,7 +143,6 @@ impl Loglet {
         let lyne = |elem: &String| -> String {
             format!("{}{}{}{}", newliner(1), tabber(1), elem, newliner(2))
         };
-        //let lyne_2 = "/================/";
         let lyne_2 = "/================================================/";
         format!(
             "Kind:{}Message:{}Time:{}{}",

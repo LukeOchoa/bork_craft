@@ -18,11 +18,13 @@ impl ErrorMessage {
     }
 
     pub fn try_update_log(&mut self) {
+        //! Receive any error messages from differnt Threads, Tokios, Async fns
         self.receiver.try_iter().for_each(|loglet| {
             GenericWindow::push_loglet(&mut self.display, loglet);
         });
     }
     pub fn sender_clone(&self) -> Sender<Loglet> {
+        //! Provide a sender for async functions or new Threads/Tokios...
         self.sender.clone()
     }
 }

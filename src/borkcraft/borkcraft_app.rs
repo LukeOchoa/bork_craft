@@ -1,20 +1,19 @@
-// emilk imports
+// My Trash Imports
 use crate::{
-    //eframe_tools::scroll_and_vert,
     increment::Inc,
     pages::login::{login_page, LoginForm},
     sessions::{current_session_time, SessionInfo, SessionTime},
     time_of_day,
-    //url_tools::{Routes, Urls},
     windows::{
         client_windows::{GenericWindow, Loglet},
         error_messages::ErrorMessage,
     },
 };
+
+// Emilk Imports
 use eframe::egui::{self, Context, ScrollArea, Ui};
-// use tokio::runtime::Runtime;
-// use std::marker::Send;
-// use poll_promise::Promise;
+
+// Godly Standard Library Imports
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
     Once,
@@ -67,10 +66,12 @@ fn real_init(
     std::thread::spawn(move || {
         let mut key = String::default();
         loop {
+            // Update Key if the user logged in again
             if let Ok(new_key) = key_receiver.try_recv() {
                 key = new_key;
-                println!("received");
             }
+
+            // Fetch session time. Ok() => update key; Err() => Sender error
             match current_session_time(&session_info_sender, key.clone()) {
                 Ok(maybe_new_key) => key = maybe_new_key,
                 Err(err) => err_sender
