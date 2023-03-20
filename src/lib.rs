@@ -1,36 +1,20 @@
 mod windows;
 
 pub mod borkcraft;
+pub mod images;
 pub mod pages;
 
 pub use borkcraft::*;
 use chrono::{Timelike, Utc};
 
-mod increment {
-    pub struct Inc {
-        counter: i64,
-    }
-    impl Inc {
-        pub fn up(&mut self) -> i64 {
-            self.counter = self.counter + 1;
-            self.counter
-        }
-        //pub fn down(&mut self) -> i64 {
-        //    self.counter = self.counter - 1;
-        //    self.counter
-        //}
-        pub fn reset(&mut self) -> i64 {
-            self.counter = 0;
-            self.counter
-        }
-        pub fn new() -> Inc {
-            Inc { counter: 0 }
-        }
-    }
-}
-
 type MagicError = Box<dyn std::error::Error>;
 
+// Traits
+//pub trait New {
+//    fn new<T>() -> T;
+//}
+
+// Random Functions
 fn _get_tokio_runtime() -> tokio::runtime::Runtime {
     let rt = tokio::runtime::Runtime::new().unwrap();
     _ = rt.enter();
@@ -73,6 +57,117 @@ fn time_of_day() -> String {
     // "Hour:{} Minute:{} Second:{}",
     let time = Utc::now();
     format!("{}:{} -- {}", time.hour(), time.minute(), time.second())
+}
+
+pub mod thread_tools {
+    use std::{
+        future::Future,
+        sync::mpsc::{channel, Receiver, Sender},
+    };
+
+    pub struct Downloader<T: Default> {
+        inner: T,
+        receiver: Receiver<T>,
+    }
+
+    impl<T: Default> Downloader<T> {
+        pub fn new() -> (Downloader<T>, Sender<T>) {
+            let (sender, receiver) = channel();
+            let downloader = Self {
+                inner: T::default(),
+                receiver,
+            };
+            return (downloader, sender);
+        }
+    }
+    pub struct Uploader<T: Default> {
+        inner: T,
+        sender: Sender<T>,
+    }
+
+    impl<T: Default> Uploader<T> {
+        pub fn new() -> (Uploader<T>, Receiver<T>) {
+            let (sender, receiver) = channel();
+            let uploader = Self {
+                inner: T::default(),
+                sender,
+            };
+            return (uploader, receiver);
+        }
+    }
+
+    pub struct Communicator<T: Default> {
+        // For two-way communication between threads
+        inner: T,
+        uploader: Uploader<T>,
+        downloader: Downloader<T>,
+    }
+    impl<T: Default> Communicator<T> {
+        pub fn new() -> (Communicator<T>, Sender<T>, Receiver<T>) {
+            let (downloader, sender) = Downloader::new();
+            let (uploader, receiver) = Uploader::new();
+            let communicator = Self {
+                inner: T::default(),
+                uploader,
+                downloader,
+            };
+
+            (communicator, sender, receiver)
+        }
+    }
+
+    use poll_promise::Promise;
+    pub struct SPromise<T, F>
+    where
+        T: Send + 'static + Default,
+        F: Future,
+    {
+        value: T,
+        some_promise: Option<Promise<T>>,
+        future: Option<F>,
+        sender: Option<poll_promise::Sender<T>>,
+    }
+
+    impl<T, F> SPromise<T, F>
+    where
+        T: Send + 'static + Default,
+        F: Future,
+    {
+        pub fn new() -> Self {
+            let (sender, promise) = Promise::new();
+            Self {
+                value: T::default(),
+                some_promise: Some(promise),
+                future: None,
+                sender: Some(sender),
+            }
+        }
+    }
+    // Store the sender, and receiver somewhere in the struct?
+    // pass the sender @ struct creation to the (F: Future)
+}
+// Modules
+mod increment {
+    pub struct Inc {
+        counter: i64,
+    }
+    impl Inc {
+        pub fn up(&mut self) -> i64 {
+            self.counter = self.counter + 1;
+            self.counter
+        }
+        //pub fn down(&mut self) -> i64 {
+        //    self.counter = self.counter - 1;
+        //    self.counter
+        //}
+        pub fn reset(&mut self) -> i64 {
+            self.counter = 0;
+            self.counter
+        }
+        pub fn new() -> Inc {
+            Inc { counter: 0 }
+        }
+    }
 }
 
 pub mod string_tools {
@@ -214,6 +309,7 @@ pub mod eframe_tools {
     }
 }
 
+// Tests
 #[cfg(test)]
 mod tests {
     //use super::{
