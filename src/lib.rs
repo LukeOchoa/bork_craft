@@ -15,7 +15,7 @@ type MagicError = Box<dyn std::error::Error>;
 //}
 
 // Random Functions
-fn _get_tokio_runtime() -> tokio::runtime::Runtime {
+fn get_tokio_runtime() -> tokio::runtime::Runtime {
     let rt = tokio::runtime::Runtime::new().unwrap();
     _ = rt.enter();
     rt
@@ -118,7 +118,7 @@ pub mod thread_tools {
 
             communicator
         }
-        pub fn downloader_sender(&self) -> Sender<T> {
+        pub fn downloader_sender_clone(&self) -> Sender<T> {
             self.downloader_sender.clone()
         }
     }
@@ -248,6 +248,7 @@ pub mod url_tools {
         GetNetherPortalImage,
         AccessRights,
         SessionTimeLeft,
+        EstimatedAmountNetherPortals,
     }
     impl Routes {
         fn make(&self) -> String {
@@ -265,6 +266,7 @@ pub mod url_tools {
                 Routes::GetNetherPortalImageNames => "/getnetherportalimagenames",
                 Routes::AccessRights => "/getaccessrights",
                 Routes::SessionTimeLeft => "/sessiontimeleft",
+                Routes::EstimatedAmountNetherPortals => "/netherportalsestimatedamount",
             }
             .to_string()
         }

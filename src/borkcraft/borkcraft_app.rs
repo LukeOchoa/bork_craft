@@ -1,5 +1,6 @@
 // My Trash Imports
 use crate::{
+    get_tokio_runtime,
     increment::Inc,
     pages::login::{login_page, LoginForm},
     sessions::{current_session_time, SessionInfo, SessionTime},
@@ -13,6 +14,9 @@ use crate::{
 // Emilk Imports
 use eframe::egui::{self, Context, ScrollArea, Ui};
 
+// Tokio Imports
+use tokio::runtime::Runtime;
+
 // Godly Standard Library Imports
 use std::sync::{
     mpsc::{channel, Receiver, Sender},
@@ -24,6 +28,7 @@ static START: Once = Once::new();
 
 pub struct BorkCraft {
     unique: Inc, // unique id
+    runtime: tokio::runtime::Runtime,
     login_form: LoginForm,
     session_info: SessionInfo,
     err_msg: ErrorMessage,
@@ -45,11 +50,14 @@ impl Default for BorkCraft {
         // Error Message
         let err_msg = ErrorMessage::new();
 
+        // Tokio
+
         START.call_once(|| {
             real_init(sender, key_receiver, err_msg.sender_clone());
         });
         Self {
             unique: Inc::new(),
+            runtime: get_tokio_runtime(),
             login_form,
             session_info,
             err_msg,
