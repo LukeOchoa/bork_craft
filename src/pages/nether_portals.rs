@@ -3,14 +3,16 @@ use crate::{
     pages::portals::{NetherPortalText, NetherPortals},
     thread_tools::Communicator,
 };
-use std::{future::Future, sync::mpsc::Sender};
+use std::future::Future;
 
 fn check_promises() {}
 
+fn batch_fetch() {}
 fn fetch_all_nether_portals(
     nether_portal_comm: Communicator<NetherPortalText>,
     imager_comm: Communicator<Imager>,
 ) {
+    std::thread::spawn(|| {});
 }
 
 pub fn nether_portals_page<F: Future>(nether_portals: &mut NetherPortals<F>) {

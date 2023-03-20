@@ -100,19 +100,26 @@ pub mod thread_tools {
         // For two-way communication between threads
         inner: T,
         uploader: Uploader<T>,
+        uploader_receiver: Receiver<T>,
         downloader: Downloader<T>,
+        downloader_sender: Sender<T>,
     }
     impl<T: Default> Communicator<T> {
-        pub fn new() -> (Communicator<T>, Sender<T>, Receiver<T>) {
+        pub fn new() -> Communicator<T> {
             let (downloader, sender) = Downloader::new();
             let (uploader, receiver) = Uploader::new();
             let communicator = Self {
                 inner: T::default(),
                 uploader,
+                uploader_receiver: receiver,
                 downloader,
+                downloader_sender: sender,
             };
 
-            (communicator, sender, receiver)
+            communicator
+        }
+        pub fn downloader_sender(&self) -> Sender<T> {
+            self.downloader_sender.clone()
         }
     }
 
