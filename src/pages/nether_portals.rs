@@ -107,13 +107,13 @@ async fn send_nether_portal_texts(
 }
 
 fn download_nether_portals(
-    nether_portal_comm: Communicator<NetherPortalText>,
-    imager_comm: Communicator<Imager>,
-    err_msg: &ErrorMessage,
+    nether_portal_sender: Sender<NetherPortalText>,
+    imager_sender: Sender<Imager>,
+    err_msg_sender: Sender<Loglet>,
     runtime: &Runtime,
 ) {
-    let nether_portal_sender = nether_portal_comm.downloader_sender_clone();
-    let err_msg_sender = err_msg.sender_clone();
+    //let nether_portal_sender = nether_portal_comm.downloader_sender_clone();
+    //let err_msg_sender = err_msg.sender_clone();
     runtime.spawn(async move {
         let result = send_nether_portal_texts(nether_portal_sender).await;
         if let Err(error) = result {
@@ -124,8 +124,17 @@ fn download_nether_portals(
     });
 }
 
-pub fn nether_portals_page<F: Future>(nether_portals: &mut NetherPortals<F>) {
-    // fetch_all_nether_portals();
+pub fn nether_portals_page<F: Future>(
+    nether_portals: &mut NetherPortals<F>,
+    err_msg: &ErrorMessage,
+    runtime: &Runtime,
+) {
+    download_nether_portals(
+        nether_portals.npt_sender_clone(),
+        nether_portals.imager_sender_clone(),
+        err_msg.sender_clone(),
+        runtime,
+    );
     check_promises();
 }
 

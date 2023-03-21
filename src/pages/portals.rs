@@ -1,10 +1,11 @@
-use std::{collections::BTreeMap, future::Future};
+use std::{collections::BTreeMap, future::Future, sync::mpsc::Sender};
 
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     images::Imager,
     thread_tools::{Communicator, SPromise},
+    windows::client_windows::Loglet,
 };
 
 // Traits
@@ -50,6 +51,15 @@ pub struct NetherPortal<F: Future> {
 
 pub struct NetherPortals<F: Future> {
     nether_portals: BTreeMap<String, NetherPortal<F>>,
-    nether_portal_comm: Communicator<NetherPortalText>,
+    nether_portal_text_comm: Communicator<NetherPortalText>,
     imager_comm: Communicator<Imager>,
+}
+
+impl<F: Future> NetherPortals<F> {
+    pub fn npt_sender_clone(&self) -> Sender<NetherPortalText> {
+        self.nether_portal_text_comm.downloader_sender_clone()
+    }
+    pub fn imager_sender_clone(&self) -> Sender<Imager> {
+        self.imager_comm.downloader_sender_clone()
+    }
 }
