@@ -1,17 +1,20 @@
 use crate::{
     images::Imager,
     pages::portals::{NetherPortalText, NetherPortals},
-    thread_tools::Communicator,
     time_of_day,
     url_tools::{Routes, Urls},
     windows::{client_windows::Loglet, error_messages::ErrorMessage},
     MagicError,
 };
+use eframe::egui::Ui;
 use std::{
-    sync::mpsc::Sender,
-    {collections::HashMap, future::Future},
+    collections::HashMap,
+    sync::{mpsc::Sender, Once},
 };
 use tokio::runtime::Runtime;
+
+// Globals
+static START: Once = Once::new();
 
 // Custom Convenience Types
 type NetherPortalTextBunch = HashMap<String, NetherPortalText>;
@@ -20,7 +23,7 @@ fn check_promises() {}
 
 fn batch_fetch_nether_portal_text(offset: i32, limit: i32) -> Result<ureq::Response, ureq::Error> {
     let route = Urls::default(Routes::GetNetherPortalBunch);
-    let url = &format!("{}offset={}&limit={}", route, offset, limit);
+    let url = &format!("{}?offset={}&limit={}", route, offset, limit);
 
     ureq::get(url).call()
 }
@@ -31,9 +34,13 @@ fn estimate_nether_portals_count() -> Result<i32, MagicError> {
     // Fetch Request
     let response = ureq::get(&Urls::default(Routes::EstimatedAmountNetherPortals)).call()?;
 
-    // Convert Request To i32
-    let estimate = serde_json::from_reader(response.into_reader())?;
+    // Convert to Map<Key: String, Value: i32>
+    let estimate: HashMap<String, i32> = serde_json::from_reader(response.into_reader())?;
 
+    // Convert To i32
+    let estimate = *estimate.get("count").unwrap();
+
+    // Return
     Ok(estimate)
 }
 
@@ -124,17 +131,26 @@ fn download_nether_portals(
     });
 }
 
-pub fn nether_portals_page<F: Future>(
-    nether_portals: &mut NetherPortals<F>,
+pub fn nether_portals_page(
+    nether_portals: &mut NetherPortals,
     err_msg: &ErrorMessage,
     runtime: &Runtime,
+    ui: &mut Ui,
 ) {
-    download_nether_portals(
-        nether_portals.npt_sender_clone(),
-        nether_portals.imager_sender_clone(),
-        err_msg.sender_clone(),
-        runtime,
-    );
+    START.call_once(|| {
+        download_nether_portals(
+            nether_portals.npt_sender_clone(),
+            nether_portals.imager_sender_clone(),
+            err_msg.sender_clone(),
+            runtime,
+        );
+    });
+
+    if nether_portals.is_npt_empty() {
+        ui.spinner();
+    } else {
+        ui.label(nether_portals.quick());
+    }
     check_promises();
 }
 

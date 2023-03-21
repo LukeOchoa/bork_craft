@@ -2,7 +2,11 @@
 use crate::{
     get_tokio_runtime,
     increment::Inc,
-    pages::login::{login_page, LoginForm},
+    pages::{
+        login::{login_page, LoginForm},
+        nether_portals::nether_portals_page,
+        portals::NetherPortals,
+    },
     sessions::{current_session_time, SessionInfo, SessionTime},
     time_of_day,
     windows::{
@@ -15,12 +19,15 @@ use crate::{
 use eframe::egui::{self, Context, ScrollArea, Ui};
 
 // Tokio Imports
-use tokio::runtime::Runtime;
+// use tokio::runtime::Runtime;
 
 // Godly Standard Library Imports
-use std::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Once,
+use std::{
+    future::Future,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Once,
+    },
 };
 
 // GLOBALS
@@ -31,6 +38,7 @@ pub struct BorkCraft {
     runtime: tokio::runtime::Runtime,
     login_form: LoginForm,
     session_info: SessionInfo,
+    nether_portals: NetherPortals,
     err_msg: ErrorMessage,
 }
 
@@ -51,15 +59,20 @@ impl Default for BorkCraft {
         let err_msg = ErrorMessage::new();
 
         // Tokio
+        let runtime = get_tokio_runtime();
+
+        // NetherPortals
+        let nether_portals = NetherPortals::default();
 
         START.call_once(|| {
             real_init(sender, key_receiver, err_msg.sender_clone());
         });
         Self {
             unique: Inc::new(),
-            runtime: get_tokio_runtime(),
+            runtime,
             login_form,
             session_info,
+            nether_portals,
             err_msg,
         }
     }
@@ -128,6 +141,7 @@ impl eframe::App for BorkCraft {
                         ui,
                         &mut self.err_msg,
                     );
+                    nether_portals_page(&mut self.nether_portals, &self.err_msg, &self.runtime, ui);
                 });
         });
 
@@ -138,7 +152,11 @@ impl eframe::App for BorkCraft {
         // update
         self.unique.reset();
         self.err_msg.try_update_log();
-        self.session_info.try_update();
+        _ = self.session_info.try_update();
+
+        //
+        _ = self.nether_portals.try_update_npt();
+
         ctx.request_repaint();
     }
 }

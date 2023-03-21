@@ -118,8 +118,14 @@ pub mod thread_tools {
 
             communicator
         }
+        // Senders
         pub fn downloader_sender_clone(&self) -> Sender<T> {
             self.downloader_sender.clone()
+        }
+
+        // Receivers
+        pub fn downloader_receiver(&self) -> &Receiver<T> {
+            &self.downloader.receiver
         }
     }
 
@@ -147,6 +153,31 @@ pub mod thread_tools {
                 some_promise: Some(promise),
                 future: None,
                 sender: Some(sender),
+            }
+        }
+        pub fn make_no_promise(value: T) -> Self {
+            //! It creates a (type Self) which initializes everything to None except Self.value
+            //!
+            //! In essence, you make no promises...!
+            Self {
+                value,
+                some_promise: None,
+                future: None,
+                sender: None,
+            }
+        }
+        pub fn add_value(&mut self, value: T) {
+            self.value = value
+        }
+        pub fn test(value: T) -> Self {
+            //! This is a test function that could be mainlined
+            //!
+            //! It creates a (type Self) which initializes everything to None except Self.value
+            Self {
+                value,
+                some_promise: None,
+                future: None,
+                sender: None,
             }
         }
     }

@@ -1,6 +1,7 @@
 use std::sync::mpsc::Receiver;
 
 use crate::{
+    err_tools::ErrorX,
     time_of_day,
     url_tools::{Routes, Urls},
     windows::client_windows::{GenericWindow, Loglet},
@@ -75,23 +76,16 @@ impl SessionInfo {
         }
     }
 
-    pub fn try_update(&mut self) {
+    pub fn try_update(&mut self) -> Result<(), MagicError> {
         //! Check for updates from: (Session Time Updater Thread)
-        if let Some(receiver) = &self.receiver {
-            loop {
-                match receiver.try_recv() {
-                    Ok((st, loglet)) => {
-                        // update user login status
-                        self.is_logged_in = Self::is_session_over(&st.time);
-                        self.session_time = st;
-                        self.display.log.push(loglet);
-                    }
-                    Err(_) => break,
-                }
-            }
-        } else {
-            println!("NO RECEIVER")
+        let receiver = self.receiver.as_ref().ok_or(ErrorX::new_box(""))?;
+        //for (st, loglet) in receiver.try_recv() {
+        while let Ok((st, loglet)) = receiver.try_recv() {
+            self.is_logged_in = Self::is_session_over(&st.time);
+            self.session_time = st;
+            self.display.log.push(loglet);
         }
+        Ok(())
     }
     pub fn block_update(&mut self) {
         if let Some(receiver) = &self.receiver {
