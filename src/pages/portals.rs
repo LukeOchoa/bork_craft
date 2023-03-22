@@ -87,10 +87,22 @@ impl NetherPortals {
         //! Checks if nether_portals_text is empty
         self.nether_portals.is_empty()
     }
-    pub fn quick(&self) -> String {
-        let total = format!("{}", self.nether_portals.is_empty());
 
-        total
+    pub fn quick(&self) -> String {
+        format!("{}", self.nether_portals.is_empty())
+    }
+
+    pub fn add_npt_to_nether_portal(&mut self, key: String, npt: NetherPortalText) {
+        if self.nether_portals.contains_key(&key) {
+            let nether_portal = self.nether_portals.get_mut(&key).unwrap();
+            nether_portal.text.add_value(npt);
+        } else {
+            let nether_portal = NetherPortal {
+                text: SPromise::make_no_promise(npt),
+                images: BTreeMap::new(),
+            };
+            self.nether_portals.insert(key, nether_portal);
+        }
     }
     pub fn add_to_nether_portal(
         &mut self,
