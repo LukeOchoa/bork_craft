@@ -54,6 +54,23 @@ pub struct NetherPortal {
     images: BTreeMap<String, SPromise<Imager, F>>,
 }
 
+// New age rewrite ==============
+
+#[derive(Default)]
+pub struct NetherPortalX {
+    portal_text: SPromise<PortalText, F>,
+    images: BTreeMap<String, SPromise<Imager, F>>,
+}
+
+pub struct NetherPortalsX {
+    overworld: BTreeMap<String, SPromise<NetherPortalX, F>>,
+    nether: BTreeMap<String, SPromise<NetherPortalX, F>>,
+    nether_portal_text_comm: Communicator<NetherPortalText>,
+    imager_comm: Communicator<Imager>, // Imager should be a Vec of Imager(s)
+}
+
+//=======================
+
 pub struct NetherPortals {
     nether_portals: BTreeMap<String, NetherPortal>,
     nether_portal_text_comm: Communicator<NetherPortalText>,
@@ -92,11 +109,15 @@ impl NetherPortals {
         format!("{}", self.nether_portals.is_empty())
     }
 
-    pub fn add_npt_to_nether_portal(&mut self, key: String, npt: NetherPortalText) {
+    pub fn add_npt_to_nether_portal(&mut self, npt: NetherPortalText) {
+        //
+        // let key = npt.
         if self.nether_portals.contains_key(&key) {
+            // If this key already exists, Override value
             let nether_portal = self.nether_portals.get_mut(&key).unwrap();
             nether_portal.text.add_value(npt);
         } else {
+            // Else: Compose new value and insert it with key
             let nether_portal = NetherPortal {
                 text: SPromise::make_no_promise(npt),
                 images: BTreeMap::new(),
@@ -104,6 +125,11 @@ impl NetherPortals {
             self.nether_portals.insert(key, nether_portal);
         }
     }
+
+    //pub fn add_imager_to_nether_portal(&mut self, key: String, imager: Imager) {
+    //    if self.nether
+    //}
+
     pub fn add_to_nether_portal(
         &mut self,
         key: String,
