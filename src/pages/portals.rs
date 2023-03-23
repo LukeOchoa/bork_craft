@@ -59,36 +59,32 @@ impl NetherPortalText {
 }
 
 type F = Box<dyn Future<Output = ()> + Unpin>;
+
+// Images should be stored by keys with their name
 pub struct NetherPortal {
-    text: SPromise<NetherPortalText, F>,
-    images: BTreeMap<String, SPromise<Imager, F>>,
-}
-
-// New age rewrite ==============
-
-pub struct NetherPortalX {
     portal_text: SPromise<PortalText, F>,
     images: BTreeMap<String, SPromise<Imager, F>>,
 }
 
-pub struct NetherPortalsX {
-    overworld: BTreeMap<String, NetherPortalX>,
-    nether: BTreeMap<String, NetherPortalX>,
+impl NetherPortal {
+    pub fn add_portal_text(&mut self, pt: PortalText) {
+        self.portal_text = SPromise::make_no_promise(pt);
+    }
+}
+
+// The Keys of NetherPortals BTreeMap members should be the PortalText.true_name
+pub struct NetherPortals {
+    overworld: BTreeMap<String, NetherPortal>,
+    nether: BTreeMap<String, NetherPortal>,
     nether_portal_text_comm: Communicator<NetherPortalText>,
     imager_comm: Communicator<Imager>, // Imager should be a Vec of Imager(s)
-}
-//=======================
-
-pub struct NetherPortals {
-    nether_portals: BTreeMap<String, NetherPortal>,
-    nether_portal_text_comm: Communicator<NetherPortalText>,
-    imager_comm: Communicator<Imager>,
 }
 
 impl NetherPortals {
     pub fn default() -> Self {
         Self {
-            nether_portals: BTreeMap::new(),
+            overworld: BTreeMap::new(),
+            nether: BTreeMap::new(),
             nether_portal_text_comm: Communicator::new(),
             imager_comm: Communicator::new(),
         }
@@ -100,124 +96,6 @@ impl NetherPortals {
     }
     pub fn imager_sender_clone(&self) -> Sender<Imager> {
         self.imager_comm.downloader_sender_clone()
-    }
-
-    // Receivers
-    pub fn npt_receiver(&self) -> &Receiver<NetherPortalText> {
-        &self.nether_portal_text_comm.downloader_receiver()
-    }
-
-    // General
-    pub fn is_npt_empty(&self) -> bool {
-        //! Checks if nether_portals_text is empty
-        self.nether_portals.is_empty()
-    }
-
-    pub fn quick(&self) -> String {
-        format!("{}", self.nether_portals.is_empty())
-    }
-
-    pub fn add_npt_to_nether_portal(&mut self, npt: NetherPortalText) {
-        //
-        // let key = npt.
-        let key = "".to_string();
-        if self.nether_portals.contains_key(&key) {
-            // If this key already exists, Override value
-            let nether_portal = self.nether_portals.get_mut(&key).unwrap();
-            nether_portal.text.add_value(npt);
-        } else {
-            // Else: Compose new value and insert it with key
-            let nether_portal = NetherPortal {
-                text: SPromise::make_no_promise(npt),
-                images: BTreeMap::new(),
-            };
-            self.nether_portals.insert(key, nether_portal);
-        }
-    }
-
-    //pub fn add_imager_to_nether_portal(&mut self, key: String, imager: Imager) {
-    //    if self.nether
-    //}
-
-    pub fn add_to_nether_portal(
-        &mut self,
-        key: String,
-        some_npt: Option<NetherPortalText>,
-        some_imager: Option<Imager>,
-    ) -> Option<()> {
-        //! SPLIT THIS INTO THRE FUNCTIONS
-        //!
-        //! Wrapper over HashMap method: "HashMap.insert()".
-        //!
-        //! Allows for either/both values to be inserted into an existing key.
-        //!
-        //! If key does not exist a new entry will be created AS LONG AS some_npt AND some_imager ARE NOT None.
-
-        // If a key already exists/ override values
-        if self.nether_portals.contains_key(&key) {
-            let nether_portal = self.nether_portals.get_mut(&key).unwrap();
-            if let Some(npt) = some_npt {
-                nether_portal.text.add_value(npt);
-            }
-            if let Some(imager) = some_imager {
-                nether_portal
-                    .images
-                    .insert(imager.get_name(), SPromise::make_no_promise(imager));
-            }
-        } else {
-            // Set up BTreeMap
-            let imager = some_imager?;
-            let mut btm = BTreeMap::new();
-            btm.insert(imager.get_name(), SPromise::make_no_promise(imager));
-
-            // Compose NetherPortal
-            let value = NetherPortal {
-                text: SPromise::make_no_promise(some_npt?),
-                images: btm,
-            };
-
-            // Insertion
-            self.nether_portals.insert(key, value);
-        }
-        None
-    }
-
-    pub fn try_update_npt(&mut self) -> Result<(), MagicError> {
-        while let Ok(nether_portal_text) = self.npt_receiver().try_recv() {
-            self.nether_portals.insert(
-                format!("{}", nether_portal_text.id),
-                NetherPortal {
-                    text: SPromise::test(nether_portal_text),
-                    images: BTreeMap::new(),
-                },
-            );
-        }
-        Ok(())
-    }
-}
-
-//pub struct NetherPortalX {
-//    portal_text: SPromise<PortalText, F>,
-//    images: BTreeMap<String, SPromise<Imager, F>>,
-//}
-
-impl NetherPortalX {
-    pub fn add_portal_text(&mut self, pt: PortalText) {
-        self.portal_text = SPromise::make_no_promise(pt);
-    }
-}
-
-impl NetherPortalsX {
-    pub fn default() -> Self {
-        Self {
-            overworld: BTreeMap::new(),
-            nether: BTreeMap::new(),
-            nether_portal_text_comm: Communicator::new(),
-            imager_comm: Communicator::new(),
-        }
-    }
-    pub fn npt_sender_clone(&self) -> Sender<NetherPortalText> {
-        self.nether_portal_text_comm.downloader_sender_clone()
     }
 
     // Test Function
@@ -241,6 +119,7 @@ impl NetherPortalsX {
             self.is_overworld_empty()
         )
     }
+    // ================
 
     // Receivers
     pub fn npt_receiver(&self) -> &Receiver<NetherPortalText> {
@@ -249,7 +128,7 @@ impl NetherPortalsX {
 
     pub fn comsume_npt_helper(
         key: String,
-        np_list: &mut BTreeMap<String, NetherPortalX>,
+        np_list: &mut BTreeMap<String, NetherPortal>,
         pt: PortalText,
     ) {
         match np_list.contains_key(&key) {
@@ -259,7 +138,7 @@ impl NetherPortalsX {
             }
             false => {
                 // if Key DOES NOT exist, INSERT new value
-                let overworld_np = NetherPortalX {
+                let overworld_np = NetherPortal {
                     portal_text: SPromise::make_no_promise(pt),
                     images: BTreeMap::new(),
                 };
@@ -267,17 +146,26 @@ impl NetherPortalsX {
             }
         }
     }
+
     pub fn comsume_npt(&mut self, mut npt: NetherPortalText) {
-        // OverWorld
+        //! Given a moved NetherPortalText struct:
+        //!
+        //! Take its members and give them to NetherPortals struct
+
+        // Take/Append OverWorld (use mem::take to avoid Partial Move|| maybe rust will update compiler to fix this?)
         let key = npt.ow_true_name();
         let overworld = mem::take(&mut npt.overworld);
         Self::comsume_npt_helper(key, &mut self.overworld, overworld);
 
-        // Nether
+        // Take/Append Nether
         let key = npt.nether_true_name();
         let nether = npt.nether;
         Self::comsume_npt_helper(key, &mut self.nether, nether);
     }
+
+    //pub fn add_imager_to_nether_portal(&mut self, key: String, imager: Imager) {
+    //    if self.nether
+    //}
 
     pub fn try_update_npt(&mut self) -> Result<(), MagicError> {
         while let Ok(nether_portal_text) = self.npt_receiver().try_recv() {
