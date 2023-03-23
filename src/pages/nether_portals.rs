@@ -13,6 +13,8 @@ use std::{
 };
 use tokio::runtime::Runtime;
 
+use super::portals::NetherPortalsX;
+
 // Globals
 static START: Once = Once::new();
 
@@ -104,8 +106,10 @@ async fn fetch_all_nether_portals() -> Result<NetherPortalTextBunch, MagicError>
 async fn send_nether_portal_texts(
     nether_portal_sender: Sender<NetherPortalText>,
 ) -> Result<(), MagicError> {
+    // Gets all nether portals within the estimate limit
     let mut nether_portal_text_bunchs = fetch_all_nether_portals().await?;
 
+    // send each npt with a channel sender to the main thread's NetherPortals(data struct)
     for (_, nether_portal_text) in nether_portal_text_bunchs.drain() {
         nether_portal_sender.send(nether_portal_text)?
     }
@@ -131,26 +135,78 @@ fn download_nether_portals(
     });
 }
 
+// Testing =========================
+
+async fn send_nether_portal_texts_x(
+    nether_portal_sender: Sender<NetherPortalText>,
+) -> Result<(), MagicError> {
+    // Gets all nether portals within the estimate limit
+    let mut nether_portal_text_bunchs = fetch_all_nether_portals().await?;
+
+    // send each npt with a channel sender to the main thread's NetherPortals(data struct)
+    for (_, nether_portal_text) in nether_portal_text_bunchs.drain() {
+        nether_portal_sender.send(nether_portal_text)?
+    }
+
+    Ok(())
+}
+
+fn download_nether_portals_x(
+    nether_portal_sender: Sender<NetherPortalText>,
+    err_msg_sender: Sender<Loglet>,
+    runtime: &Runtime,
+) {
+    //let nether_portal_sender = nether_portal_comm.downloader_sender_clone();
+    //let err_msg_sender = err_msg.sender_clone();
+    runtime.spawn(async move {
+        let result = send_nether_portal_texts_x(nether_portal_sender).await;
+        if let Err(error) = result {
+            err_msg_sender
+                .send(Loglet::new("Error", &error.to_string(), &time_of_day()))
+                .unwrap();
+        }
+    });
+}
+// ==================================================================================================================================
+
 pub fn nether_portals_page(
     nether_portals: &mut NetherPortals,
+    nether_portals_x: &mut NetherPortalsX,
     err_msg: &ErrorMessage,
     runtime: &Runtime,
     ui: &mut Ui,
 ) {
     START.call_once(|| {
-        download_nether_portals(
-            nether_portals.npt_sender_clone(),
-            nether_portals.imager_sender_clone(),
+        // download_nether_portals(
+        //     nether_portals.npt_sender_clone(),
+        //     nether_portals.imager_sender_clone(),
+        //     err_msg.sender_clone(),
+        //     runtime,
+        // );
+        download_nether_portals_x(
+            nether_portals_x.npt_sender_clone(),
             err_msg.sender_clone(),
             runtime,
         );
     });
 
-    if nether_portals.is_npt_empty() {
+    // TEST FUNCTIONS
+    if nether_portals_x.is_overworld_empty() {
         ui.spinner();
     } else {
-        ui.label(nether_portals.quick());
+        ui.label(nether_portals_x.quicko());
     }
+
+    if nether_portals_x.is_nether_empty() {
+        ui.spinner();
+    } else {
+        ui.label(nether_portals_x.quickn());
+    }
+    //if nether_portals.is_npt_empty() {
+    //    ui.spinner();
+    //} else {
+    //    ui.label(nether_portals.quick());
+    //}
     check_promises();
 }
 

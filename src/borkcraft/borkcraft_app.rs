@@ -5,7 +5,7 @@ use crate::{
     pages::{
         login::{login_page, LoginForm},
         nether_portals::nether_portals_page,
-        portals::NetherPortals,
+        portals::{NetherPortals, NetherPortalsX},
     },
     sessions::{current_session_time, SessionInfo, SessionTime},
     time_of_day,
@@ -39,6 +39,7 @@ pub struct BorkCraft {
     login_form: LoginForm,
     session_info: SessionInfo,
     nether_portals: NetherPortals,
+    nether_portals_x: NetherPortalsX,
     err_msg: ErrorMessage,
 }
 
@@ -64,6 +65,9 @@ impl Default for BorkCraft {
         // NetherPortals
         let nether_portals = NetherPortals::default();
 
+        // NetherPortalsX
+        let nether_portals_x = NetherPortalsX::default();
+
         START.call_once(|| {
             real_init(sender, key_receiver, err_msg.sender_clone());
         });
@@ -73,6 +77,7 @@ impl Default for BorkCraft {
             login_form,
             session_info,
             nether_portals,
+            nether_portals_x,
             err_msg,
         }
     }
@@ -141,7 +146,13 @@ impl eframe::App for BorkCraft {
                         ui,
                         &mut self.err_msg,
                     );
-                    nether_portals_page(&mut self.nether_portals, &self.err_msg, &self.runtime, ui);
+                    nether_portals_page(
+                        &mut self.nether_portals,
+                        &mut self.nether_portals_x,
+                        &self.err_msg,
+                        &self.runtime,
+                        ui,
+                    );
                 });
         });
 
@@ -156,6 +167,7 @@ impl eframe::App for BorkCraft {
 
         //
         _ = self.nether_portals.try_update_npt();
+        _ = self.nether_portals_x.try_update_npt();
 
         ctx.request_repaint();
     }
