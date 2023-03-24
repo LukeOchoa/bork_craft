@@ -347,6 +347,35 @@ pub mod eframe_tools {
         //! Add vertical space using newlines
         ui.label(format!("{}", newliner(amount)));
     }
+    pub struct ModalMachine {
+        selected_option: String,
+        options: Vec<String>,
+        name: String,
+    }
+
+    impl ModalMachine {
+        pub fn new(selected_option: String, options: Vec<String>, name: String) -> Self {
+            Self {
+                selected_option,
+                options,
+                name,
+            }
+        }
+        pub fn get_selected_option(&self) -> String {
+            self.selected_option.clone()
+        }
+        pub fn modal_machine(&mut self, id: i64, ui: &mut Ui) {
+            ui.push_id(id, |ui| {
+                eframe::egui::ComboBox::from_label(&self.name)
+                    .selected_text(&self.selected_option)
+                    .show_ui(ui, |ui| {
+                        self.options.iter().for_each(|option| {
+                            ui.selectable_value(&mut self.selected_option, option.clone(), option);
+                        });
+                    });
+            });
+        }
+    }
 }
 
 // Tests

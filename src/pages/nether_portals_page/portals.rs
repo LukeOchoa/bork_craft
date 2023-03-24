@@ -148,7 +148,7 @@ impl NetherPortals {
     }
 
     pub fn comsume_npt(&mut self, mut npt: NetherPortalText) {
-        //! Given a moved NetherPortalText struct:
+        //! Given a moved NetherPortalText struct: (npt)
         //!
         //! Take its members and give them to NetherPortals struct
 

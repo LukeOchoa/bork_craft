@@ -1,11 +1,14 @@
 // My Trash Imports
 use crate::{
+    eframe_tools::ModalMachine,
     get_tokio_runtime,
     increment::Inc,
     pages::{
         login::{login_page, LoginForm},
-        nether_portals::nether_portals_page,
-        portals::NetherPortals,
+        nether_portals_page::{page::display_nether_portals_page, portals::NetherPortals},
+        //nether_portals_page::nether_portals_page,
+        //nether_portals_page_options::portals::NetherPortals,
+        //NetherPortals,
     },
     sessions::{current_session_time, SessionInfo, SessionTime},
     time_of_day,
@@ -30,11 +33,20 @@ use std::sync::{
 // GLOBALS
 static START: Once = Once::new();
 
+fn set_base_page() -> ModalMachine {
+    let options = vec!["Login".to_string(), "Nether Portals".to_string()];
+    ModalMachine::new(
+        options[0].clone(),
+        options,
+        "Welcome to BorkCraft".to_string(),
+    )
+}
 pub struct BorkCraft {
     unique: Inc, // unique id
     runtime: tokio::runtime::Runtime,
     login_form: LoginForm,
     session_info: SessionInfo,
+    base_page: ModalMachine,
     nether_portals: NetherPortals,
     err_msg: ErrorMessage,
 }
@@ -59,10 +71,10 @@ impl Default for BorkCraft {
         let runtime = get_tokio_runtime();
 
         // NetherPortals
-        //let nether_portals = NetherPortals::default();
-
-        // NetherPortalsX
         let nether_portals = NetherPortals::default();
+
+        // ModalMachines
+        let base_page = set_base_page();
 
         START.call_once(|| {
             real_init(sender, key_receiver, err_msg.sender_clone());
@@ -73,11 +85,43 @@ impl Default for BorkCraft {
             login_form,
             session_info,
             nether_portals,
+            base_page,
             err_msg,
         }
     }
 }
+impl BorkCraft {
+    fn update_updaters(&mut self) {
+        self.unique.reset();
+        self.err_msg.try_update_log();
+        _ = self.session_info.try_update();
+        _ = self.nether_portals.try_update_npt();
+    }
 
+    fn handle_pages(&mut self, ui: &mut Ui) {
+        match &self.base_page.get_selected_option() as &str {
+            "Login" => {
+                login_page(
+                    &mut self.session_info,
+                    &mut self.login_form,
+                    ui,
+                    &mut self.err_msg,
+                );
+            }
+            "Nether Portals" => {
+                display_nether_portals_page(
+                    &mut self.nether_portals,
+                    &self.err_msg,
+                    &self.runtime,
+                    ui,
+                );
+            }
+            _ => {
+                ui.label("In development. Sorry...");
+            }
+        }
+    }
+}
 fn real_init(
     session_info_sender: Sender<(SessionTime, Loglet)>,
     key_receiver: Receiver<String>,
@@ -116,10 +160,15 @@ fn display_err_msgs(err_msg: &mut ErrorMessage, id: i64, ui: &mut Ui, ctx: Conte
     GenericWindow::display_generic_window(&mut err_msg.display, id, ui, ctx);
 }
 
+fn handle_base_page(base_page: &mut ModalMachine, id: i64, ui: &mut Ui) {
+    base_page.modal_machine(id, ui);
+}
+
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                handle_base_page(&mut self.base_page, self.unique.up(), ui);
                 display_session_time_left(
                     &mut self.session_info,
                     self.unique.up(),
@@ -135,13 +184,7 @@ impl eframe::App for BorkCraft {
             ScrollArea::vertical()
                 .id_source(self.unique.up())
                 .show(ui, |ui| {
-                    login_page(
-                        &mut self.session_info,
-                        &mut self.login_form,
-                        ui,
-                        &mut self.err_msg,
-                    );
-                    nether_portals_page(&mut self.nether_portals, &self.err_msg, &self.runtime, ui);
+                    self.handle_pages(ui);
                 });
         });
 
@@ -150,14 +193,7 @@ impl eframe::App for BorkCraft {
         });
 
         // update
-        self.unique.reset();
-        self.err_msg.try_update_log();
-        _ = self.session_info.try_update();
-
-        //
-        // _ = self.nether_portals.try_update_npt();
-        _ = self.nether_portals.try_update_npt();
-
+        self.update_updaters();
         ctx.request_repaint();
     }
 }
