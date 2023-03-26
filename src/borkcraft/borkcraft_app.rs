@@ -111,6 +111,7 @@ impl BorkCraft {
             "Nether Portals" => {
                 display_nether_portals_page(
                     &mut self.nether_portals,
+                    &mut self.unique,
                     &self.err_msg,
                     &self.runtime,
                     ui,
@@ -180,7 +181,7 @@ impl eframe::App for BorkCraft {
             });
         });
 
-        egui::SidePanel::left(self.unique.up()).show(ctx, |ui| {
+        egui::SidePanel::left(self.unique.up_str()).show(ctx, |ui| {
             ScrollArea::vertical()
                 .id_source(self.unique.up())
                 .show(ui, |ui| {

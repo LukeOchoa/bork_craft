@@ -8,8 +8,9 @@ edition = "2021"
 [dependencies]
 
 # Egui dependencies
-eframe = { version = "0.19.0" }
-egui_extras = { version = "0.19.0", features = ["image"]}
+eframe = { version = "0.21.0" }
+egui = "0.21.0"
+egui_extras = { version = "0.21.0", features = ["image"]} # "0.19.0"
 
 # Others
 image = { version = "0.24", features = ["jpeg", "png"] }

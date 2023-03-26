@@ -169,6 +169,20 @@ pub mod thread_tools {
         pub fn add_value(&mut self, value: T) {
             self.value = value
         }
+        pub fn mut_value(&mut self) -> &mut T {
+            &mut self.value
+        }
+        pub fn ref_value(&self) -> &T {
+            &self.value
+        }
+
+        // Test Values
+        pub fn quick_value(&self) -> &T {
+            &self.value
+        }
+        pub fn quick_inner(&self) -> &Option<Promise<T>> {
+            &self.some_promise
+        }
         pub fn test(value: T) -> Self {
             //! This is a test function that could be mainlined
             //!
@@ -193,6 +207,10 @@ mod increment {
         pub fn up(&mut self) -> i64 {
             self.counter = self.counter + 1;
             self.counter
+        }
+        pub fn up_str(&mut self) -> String {
+            self.counter = self.counter + 1;
+            self.counter.to_string()
         }
         //pub fn down(&mut self) -> i64 {
         //    self.counter = self.counter - 1;
