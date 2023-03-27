@@ -129,6 +129,27 @@ fn mutate_button(ui: &mut Ui, state: bool) -> bool {
     }
 }
 
+fn reset_all_btree(nether_portals: &mut NetherPortals, ui: &mut Ui) {
+    if ui.button("Reset All Text").clicked() {
+        nether_portals
+            .overworld_mut()
+            .iter_mut()
+            .for_each(|(_, nether_portal)| nether_portal.set_as_btree());
+    }
+}
+
+fn reset_this_btree(nether_portals: &mut NetherPortals, key: &String, ui: &mut Ui) {
+    if ui.button("Reset This").clicked() {
+        nether_portals
+            .overworld_mut()
+            .get_mut(key)
+            .and_then(|nether_portal| {
+                nether_portal.set_as_btree();
+                None::<&NetherPortals>
+            });
+    }
+}
+
 pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut Ui) -> Option<()> {
     // If there is no information, leave. There is nothing to display
     if nether_portals.is_overworld_empty() {
@@ -150,6 +171,12 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
 
         // Mutate allows for mutations inside PortalTextBTree
         mutate = nether_portals.set_mutate(mutate_button(ui, mutate));
+
+        // Reset changes allowed by mutate
+        reset_all_btree(nether_portals, ui);
+
+        // Reset changes allow by mutate to THIS KEY only
+        reset_this_btree(nether_portals, &ow_key, ui);
     });
 
     //.overworld_ref()
@@ -162,6 +189,7 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
             ui.push_id(unique.up_str(), |ui| {
                 // Create a table
                 let table = quick_table(ui, 1, reset);
+
                 // Display Content
                 match mutate {
                     true => portal_text_displayer_mut(&mut display_portal.btree_mut(), table),
