@@ -108,8 +108,6 @@ fn get_fetcher_fn(estimate: i32, limit: i32) -> Result<FetchFunction, MagicError
     Err(ErrorX::new_box("There are no rows in the database"))
 }
 
-// ================================================================================================
-
 pub fn download_nether_portals(
     nether_portal_sender: Sender<NetherPortalText>,
     err_msg_sender: Sender<Loglet>,

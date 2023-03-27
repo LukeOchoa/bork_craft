@@ -9,7 +9,6 @@ use serde_derive::{Deserialize, Serialize};
 //windows::client_windows::Loglet,
 use crate::{
     images::Imager,
-    string_tools::newliner,
     thread_tools::{Communicator, SPromise},
     MagicError,
 };
@@ -98,6 +97,9 @@ impl NetherPortal {
     pub fn btree_ref(&self) -> &PortalTextBTree {
         &self.as_btree
     }
+    pub fn btree_mut(&mut self) -> &mut PortalTextBTree {
+        &mut self.as_btree
+    }
 
     // Checkers
     pub fn is_empty(&self) -> bool {
@@ -138,6 +140,7 @@ pub struct NetherPortals {
     imager_comm: Communicator<Imager>, // Imager should be a Vec of Imager(s)
     ow_position: Keys,
     nether_position: Keys,
+    mutate: bool,
 }
 
 impl NetherPortals {
@@ -149,6 +152,7 @@ impl NetherPortals {
             imager_comm: Communicator::new(),
             ow_position: Keys::default(),
             nether_position: Keys::default(),
+            mutate: bool::default(),
         }
     }
 
@@ -165,6 +169,9 @@ impl NetherPortals {
     pub fn nether_ref(&self) -> &NetherPortalBTree {
         &self.nether
     }
+    pub fn get_mutate(&self) -> bool {
+        self.mutate
+    }
 
     // Keys Getters
     pub fn get_ow_pos(&self) -> Option<String> {
@@ -172,6 +179,13 @@ impl NetherPortals {
     }
     pub fn get_neth_pos(&self) -> Option<String> {
         self.nether_position.current()
+    }
+
+    // Setters
+    pub fn set_mutate(&mut self, booly: bool) -> bool {
+        self.mutate = booly;
+
+        self.mutate
     }
 
     // Key Setters
