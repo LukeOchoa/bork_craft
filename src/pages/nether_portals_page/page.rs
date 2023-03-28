@@ -1,7 +1,10 @@
 use crate::{
     images::Imager,
     increment::Inc,
-    pages::nether_portals_page::{download::download_nether_portals, portals::NetherPortals},
+    pages::nether_portals_page::{
+        download::download_nether_portals,
+        portals::{NetherPortal, NetherPortalBTree, NetherPortals},
+    },
     windows::error_messages::ErrorMessage,
 };
 use eframe::egui::Ui;
@@ -17,7 +20,7 @@ fn check_promises() {}
 
 fn setup_displayables(nether_portals: &mut NetherPortals) {
     // If its empty iter through and convert NP to BTree
-    if !nether_portals.is_nether_empty() {
+    if !nether_portals.is_overworld_empty() {
         nether_portals
             .overworld_mut()
             .iter_mut()
@@ -36,6 +39,22 @@ fn setup_displayables(nether_portals: &mut NetherPortals) {
 
         // Append
         nether_portals.set_ow_pos(keys);
+    }
+    if !nether_portals.is_nether_empty() {
+        nether_portals
+            .nether_mut()
+            .iter_mut()
+            .for_each(|(_, nether_portal)| {
+                if nether_portal.is_empty() {
+                    nether_portal.set_as_btree()
+                }
+            });
+        let keys: Vec<String> = nether_portals
+            .nether_ref()
+            .keys()
+            .map(|ref_s| ref_s.to_string())
+            .collect();
+        nether_portals.set_neth_pos(keys);
     }
 }
 

@@ -53,6 +53,15 @@ impl PortalText {
 
         new_btree
     }
+    pub fn from_btree(btree: &BTreeMap<String, String>) -> PortalText {
+        // Serialize BTree to json
+        let btree_as_json = serde_json::to_value(&btree).unwrap();
+
+        // Convert json to Portal Text
+        let mut portal_text: PortalText = serde_json::from_value(btree_as_json).unwrap();
+
+        portal_text
+    }
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -76,6 +85,12 @@ impl NetherPortalText {
         //! Return new String from overworld.true_name's field
         self.overworld.true_name.clone()
     }
+    //pub fn convert_np(np: NetherPortal) -> NetherPortalText{
+    //    let npt = NetherPortalText {
+    //        id: 0,
+    //        overworld
+    //    }
+    //}
 }
 
 type F = Box<dyn Future<Output = ()> + Unpin>;
@@ -131,7 +146,7 @@ impl Keys {
     }
 }
 
-type NetherPortalBTree = BTreeMap<String, NetherPortal>;
+pub type NetherPortalBTree = BTreeMap<String, NetherPortal>;
 // The Keys of NetherPortals BTreeMap members should be the PortalText.true_name
 pub struct NetherPortals {
     overworld: BTreeMap<String, NetherPortal>,
@@ -264,7 +279,7 @@ impl NetherPortals {
         &self.nether_portal_text_comm.downloader_receiver()
     }
 
-    pub fn comsume_npt_helper(
+    pub fn consume_npt_helper(
         key: String,
         np_list: &mut BTreeMap<String, NetherPortal>,
         pt: PortalText,
@@ -286,7 +301,7 @@ impl NetherPortals {
         }
     }
 
-    pub fn comsume_npt(&mut self, mut npt: NetherPortalText) {
+    pub fn consume_npt(&mut self, mut npt: NetherPortalText) {
         //! Given a moved NetherPortalText struct: (npt)
         //!
         //! Take its members and give them to NetherPortals struct
@@ -294,12 +309,12 @@ impl NetherPortals {
         // Take/Append OverWorld (use mem::take to avoid Partial Move|| maybe rust will update compiler to fix this?)
         let key = npt.ow_true_name();
         let overworld = mem::take(&mut npt.overworld);
-        Self::comsume_npt_helper(key, &mut self.overworld, overworld);
+        Self::consume_npt_helper(key, &mut self.overworld, overworld);
 
         // Take/Append Nether
         let key = npt.nether_true_name();
         let nether = npt.nether;
-        Self::comsume_npt_helper(key, &mut self.nether, nether);
+        Self::consume_npt_helper(key, &mut self.nether, nether);
     }
 
     //pub fn add_imager_to_nether_portal(&mut self, key: String, imager: Imager) {
@@ -308,7 +323,7 @@ impl NetherPortals {
 
     pub fn try_update_npt(&mut self) -> Result<(), MagicError> {
         while let Ok(nether_portal_text) = self.npt_receiver().try_recv() {
-            self.comsume_npt(nether_portal_text);
+            self.consume_npt(nether_portal_text);
         }
         Ok(())
     }

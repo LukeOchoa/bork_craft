@@ -2,8 +2,13 @@ use eframe::egui::Ui;
 use egui_extras::{Column, TableBuilder};
 use std::collections::BTreeMap;
 
-use super::portals::NetherPortals;
-use crate::increment::Inc;
+use super::portals::{NetherPortal, NetherPortalText, NetherPortals, PortalText};
+use crate::{
+    increment::Inc,
+    url_tools::{Routes, Urls},
+    MagicError,
+};
+use ureq;
 
 fn quick_table(ui: &mut Ui, columns: usize, reset: bool) -> TableBuilder {
     //! Just for settings up a simple table
@@ -150,6 +155,23 @@ fn reset_this_btree(nether_portals: &mut NetherPortals, key: &String, ui: &mut U
     }
 }
 
+//fn save_nether_portal(npt: &NetherPortalText) -> Result<ureq::Response, MagicError> {
+//    let url = &Urls::default(Routes::UpdateNetherPortalText);
+//    let response = ureq::post(url).send_json(npt)?;
+//
+//    Ok(response)
+//}
+//
+//fn save_all_changes() {
+//}
+//
+//fn save_this(nether_portals: &mut NetherPortals, key: &String) {
+//    if let Some(btree) = nether_portals.overworld_ref().get(key) {
+//        let pt = PortalText::from_btree(btree);
+//        let response = save_nether_portal(npt)
+//    }
+//}
+
 pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut Ui) -> Option<()> {
     // If there is no information, leave. There is nothing to display
     if nether_portals.is_overworld_empty() {
@@ -177,6 +199,12 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
 
         // Reset changes allow by mutate to THIS KEY only
         reset_this_btree(nether_portals, &ow_key, ui);
+
+        // Save All Changes allowed by mutate
+        //save_all_changes();
+
+        // Save changes allowed by mutate to THIS KEY only
+        //save_this();
     });
 
     //.overworld_ref()
