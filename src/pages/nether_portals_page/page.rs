@@ -19,6 +19,9 @@ static START: Once = Once::new();
 fn check_promises() {}
 
 fn setup_displayables(nether_portals: &mut NetherPortals) {
+    //! Iter through each np and make a key collection
+    //! from them
+
     // If its empty iter through and convert NP to BTree
     if !nether_portals.is_overworld_empty() {
         nether_portals

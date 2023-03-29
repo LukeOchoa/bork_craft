@@ -210,6 +210,8 @@ impl NetherPortals {
     pub fn set_neth_pos(&mut self, keys: Vec<String>) {
         self.nether_position.set_keys(keys);
     }
+
+    // Increment&Decrement OverWorld Position
     pub fn ow_pos_up(&mut self) {
         let index = self.ow_position.get_index();
         if index < self.ow_position.len() - 1 {
@@ -220,6 +222,20 @@ impl NetherPortals {
         let index = self.ow_position.get_index();
         if index > 0 {
             self.ow_position.set_pos(index - 1)
+        }
+    }
+
+    // Increment&Decrement Nether Position
+    pub fn neth_pos_up(&mut self) {
+        let index = self.nether_position.get_index();
+        if index < self.nether_position.len() - 1 {
+            self.nether_position.set_pos(index + 1);
+        }
+    }
+    pub fn neth_pos_down(&mut self) {
+        let index = self.nether_position.get_index();
+        if index > 0 {
+            self.nether_position.set_pos(index - 1);
         }
     }
 

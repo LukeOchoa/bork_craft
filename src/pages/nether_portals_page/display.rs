@@ -8,7 +8,6 @@ use crate::{
     url_tools::{Routes, Urls},
     MagicError,
 };
-use ureq;
 
 fn quick_table(ui: &mut Ui, columns: usize, reset: bool) -> TableBuilder {
     //! Just for settings up a simple table
@@ -108,10 +107,12 @@ fn portal_text_displayer_mut(displayable_pt: &mut BTreeMap<String, String>, tabl
 fn move_back_or_forth_buttons(nether_portals: &mut NetherPortals, ui: &mut Ui) {
     if ui.button("Go Back").clicked() {
         nether_portals.ow_pos_down();
+        nether_portals.neth_pos_down();
     }
 
     if ui.button("Go Forth").clicked() {
         nether_portals.ow_pos_up();
+        nether_portals.neth_pos_up();
     }
 }
 
@@ -180,7 +181,7 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
 
     // Get the current key chosen. if no key, nothing to show. So leave
     let ow_key = nether_portals.get_ow_pos()?;
-    //nether_portals.get_neth_pos()?
+    let neth_key = nether_portals.get_neth_pos()?;
 
     let mut reset = bool::default();
     let mut mutate = nether_portals.get_mutate();
@@ -207,7 +208,6 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
         //save_this();
     });
 
-    //.overworld_ref()
     // Access The current PortalTextBTree
     nether_portals
         .overworld_mut()
@@ -227,16 +227,32 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
             });
             None::<&NetherPortals>
         });
+
     nether_portals
-        .overworld_ref()
-        .get("Luke SpawnPoint")
-        .and_then(|dp| {
+        .nether_mut()
+        .get_mut(&neth_key)
+        .and_then(|display_portal| {
             ui.push_id(unique.up_str(), |ui| {
                 let table = quick_table(ui, 1, reset);
-                portal_text_displayer(dp.btree_ref(), table);
+
+                match mutate {
+                    true => portal_text_displayer(&mut &display_portal.btree_mut(), table),
+                    false => portal_text_displayer(display_portal.btree_ref(), table),
+                }
             });
+
             None::<&NetherPortals>
         });
+    // nether_portals
+    //     .overworld_ref()
+    //     .get("Luke SpawnPoint")
+    //     .and_then(|dp| {
+    //         ui.push_id(unique.up_str(), |ui| {
+    //             let table = quick_table(ui, 1, reset);
+    //             portal_text_displayer(dp.btree_ref(), table);
+    //         });
+    //         None::<&NetherPortals>
+    //     });
 
     Some(())
 }
