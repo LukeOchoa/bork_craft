@@ -1,11 +1,15 @@
 use eframe::egui::Ui;
 use egui_extras::{Column, TableBuilder};
 use std::collections::BTreeMap;
+use std::sync::mpsc::Sender;
 
 use super::portals::{NetherPortal, NetherPortalText, NetherPortals, PortalText};
 use crate::{
     increment::Inc,
+    thread_tools::SPromise,
+    time_of_day,
     url_tools::{Routes, Urls},
+    windows::client_windows::Loglet,
     MagicError,
 };
 
@@ -156,23 +160,6 @@ fn reset_this_btree(nether_portals: &mut NetherPortals, key: &String, ui: &mut U
     }
 }
 
-//fn save_nether_portal(npt: &NetherPortalText) -> Result<ureq::Response, MagicError> {
-//    let url = &Urls::default(Routes::UpdateNetherPortalText);
-//    let response = ureq::post(url).send_json(npt)?;
-//
-//    Ok(response)
-//}
-//
-//fn save_all_changes() {
-//}
-//
-//fn save_this(nether_portals: &mut NetherPortals, key: &String) {
-//    if let Some(btree) = nether_portals.overworld_ref().get(key) {
-//        let pt = PortalText::from_btree(btree);
-//        let response = save_nether_portal(npt)
-//    }
-//}
-
 pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut Ui) -> Option<()> {
     // If there is no information, leave. There is nothing to display
     if nether_portals.is_overworld_empty() {
@@ -243,16 +230,6 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
 
             None::<&NetherPortals>
         });
-    // nether_portals
-    //     .overworld_ref()
-    //     .get("Luke SpawnPoint")
-    //     .and_then(|dp| {
-    //         ui.push_id(unique.up_str(), |ui| {
-    //             let table = quick_table(ui, 1, reset);
-    //             portal_text_displayer(dp.btree_ref(), table);
-    //         });
-    //         None::<&NetherPortals>
-    //     });
 
     Some(())
 }

@@ -112,7 +112,7 @@ impl BorkCraft {
                 display_nether_portals_page(
                     &mut self.nether_portals,
                     &mut self.unique,
-                    &self.err_msg,
+                    &mut self.err_msg,
                     &self.runtime,
                     ui,
                 );

@@ -1,26 +1,94 @@
 use crate::{
+    err_tools::ErrorX,
     images::Imager,
     increment::Inc,
     pages::nether_portals_page::{
         download::download_nether_portals,
-        portals::{NetherPortal, NetherPortalBTree, NetherPortals},
+        portals::{NetherPortals, PortalText},
     },
-    windows::error_messages::ErrorMessage,
+    thread_tools::SPromise,
+    time_of_day,
+    url_tools::{Routes, Urls},
+    windows::{client_windows::Loglet, error_messages::ErrorMessage},
+    HandleError, MagicError, StatusCheck,
 };
 use eframe::egui::Ui;
-use std::sync::Once;
+use std::sync::{mpsc::Sender, Once};
 use tokio::runtime::Runtime;
 
-use super::display::displayer;
+use super::{display::displayer, portals::NetherPortalText};
 
 // Globals
 static START: Once = Once::new();
 
 fn check_promises() {}
 
+fn save_nether_portal(npt: NetherPortalText) -> Result<ureq::Response, MagicError> {
+    let url = &Urls::default(Routes::UpdateNetherPortalText);
+    let response = ureq::post(url).send_json(npt)?;
+
+    Ok(response)
+}
+
+//fn save_all_changes() {
+//}
+
+fn save_this_change(
+    nether_portals: &mut NetherPortals,
+    neth_key: &String,
+    runtime: &Runtime,
+    ow_key: &String,
+) -> Result<(), MagicError> {
+    // Error Message Maker
+    let errmsg = |key: &String| {
+        format!(
+            "Failed to save struct NetherPortal because of bad key: |{}|",
+            key
+        )
+    };
+
+    // Get Refs to BOTH nether&overworld btrees
+    let neth_btree = nether_portals
+        .overworld_ref()
+        .get(ow_key)
+        .ok_or(ErrorX::new_box(&errmsg(ow_key)))?
+        .btree_ref();
+    let ow_btree = nether_portals
+        .nether_ref()
+        .get(neth_key)
+        .ok_or(ErrorX::new_box(&errmsg(ow_key)))?
+        .btree_ref();
+
+    // Convert BOTH to type PortalText structs
+    let overworld = PortalText::from_btree(ow_btree)?;
+    let nether = PortalText::from_btree(neth_btree)?;
+
+    // Build a NetherPortalText the PortalTexts
+    let npt = NetherPortalText::build_from(overworld, nether);
+
+    // Create a notifier
+    let (spromise, sender) = SPromise::make_promise();
+    nether_portals.set_request(spromise);
+
+    //let sender = nether_portals.request_mut().take_sender().unwrap();
+    runtime.spawn(async move {
+        let subfn = || -> Result<(), MagicError> {
+            save_nether_portal(npt)?.status_check()?;
+            //Ok(())
+            Err(ErrorX::new_box("This is just a test error"))
+        };
+        if let Err(err) = subfn() {
+            sender.send(Some(err.to_string()))
+        } else {
+            sender.send(None)
+        }
+    });
+
+    Ok(())
+}
+
 fn setup_displayables(nether_portals: &mut NetherPortals) {
-    //! Iter through each np and make a key collection
-    //! from them
+    //! Iter through each NP and make a key collection from them
 
     // If its empty iter through and convert NP to BTree
     if !nether_portals.is_overworld_empty() {
@@ -40,7 +108,7 @@ fn setup_displayables(nether_portals: &mut NetherPortals) {
             .map(|ref_s| ref_s.to_string())
             .collect();
 
-        // Append
+        // Append to NetherPortals
         nether_portals.set_ow_pos(keys);
     }
     if !nether_portals.is_nether_empty() {
@@ -61,10 +129,70 @@ fn setup_displayables(nether_portals: &mut NetherPortals) {
     }
 }
 
+fn is_request_processing(np: &NetherPortals, ui: &mut Ui) -> Result<(), MagicError> {
+    // Bind let: if  there is currently a Promise to uphold inside SPromise
+    let promise = match np.request_ref().spromise_ref().as_ref() {
+        Some(promise) => promise,
+        None => return Ok(()),
+    };
+
+    // if promise is NOT ready(request not finished), THEN ui.spinner
+    // TODO change Option<String> to Result<(), MagicError>
+    let some_err = match promise.ready() {
+        Some(err) => err,
+        None => {
+            ui.spinner();
+            return Ok(());
+        }
+    };
+
+    // Some(err) == Err(), None == Successful request!
+    match some_err {
+        Some(err) => Err(ErrorX::new_box(err)),
+        None => Ok(()),
+    }
+}
+
+fn save(
+    nether_portals: &mut NetherPortals,
+    runtime: &Runtime,
+    ui: &mut Ui,
+) -> Result<(), MagicError> {
+    // If the request is still processing: True => Ui.Spinner; False => Reset the np.request
+    is_request_processing(nether_portals, ui).otherwise(|_| {
+        nether_portals.set_request(SPromise::make_no_promise(None));
+    })?;
+    // TODO use .inspect_err() in the future when it is stable (currently unstable only)
+
+    // On button click, Save Changes
+    if ui.button("Save This Change").clicked() {
+        let ow_key = &nether_portals.get_ow_pos().unwrap();
+        let neth_key = &nether_portals.get_neth_pos().unwrap();
+
+        // Set both (NetherPortals.portal_text)s with data from .as_btree
+        nether_portals
+            .overworld_mut()
+            .get_mut(ow_key)
+            .unwrap()
+            .set_pt()?;
+        nether_portals
+            .nether_mut()
+            .get_mut(neth_key)
+            .unwrap()
+            .set_pt()?;
+
+        // Execute async request
+        save_this_change(nether_portals, neth_key, runtime, ow_key)?;
+    }
+
+    Ok(())
+}
+
+// Big Boi Function
 pub fn display_nether_portals_page(
     nether_portals: &mut NetherPortals,
     unique: &mut Inc,
-    err_msg: &ErrorMessage,
+    err_msg: &mut ErrorMessage,
     runtime: &Runtime,
     ui: &mut Ui,
 ) {
@@ -78,19 +206,9 @@ pub fn display_nether_portals_page(
 
     setup_displayables(nether_portals);
 
+    save(nether_portals, runtime, ui).consume_error(err_msg);
+
     displayer(nether_portals, unique, ui);
 
     check_promises();
 }
-
-// SPromise
-// You have a value
-// when you need a new value
-//
-// 1) Run the future
-// 2) Give sender to the future
-// 3) Pass future to a thread/tokio
-// 4) Use a spinner in place of the loading data
-// 5) Once promise if fulfilled, take() from Option
-//     and give it to SPromise.value
-//      making SPromise.some_value as None

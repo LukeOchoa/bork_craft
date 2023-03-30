@@ -1,6 +1,7 @@
 use crate::{
     eframe_tools::{scroll_and_vert, space_vert},
     string_tools::*,
+    time_of_day,
 };
 use eframe::egui::{Context, Ui};
 
@@ -136,6 +137,20 @@ impl Loglet {
             kind: kind.to_string(),
             msg: msg.to_string(),
             time: time.to_string(),
+        }
+    }
+    pub fn err_s(msg: &str) -> Loglet {
+        Self {
+            kind: "Error".to_string(),
+            msg: msg.to_string(),
+            time: time_of_day(),
+        }
+    }
+    pub fn err(err: crate::MagicError) -> Loglet {
+        Self {
+            kind: "Error".to_string(),
+            msg: err.to_string(),
+            time: time_of_day(),
         }
     }
 

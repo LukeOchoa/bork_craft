@@ -53,14 +53,21 @@ impl PortalText {
 
         new_btree
     }
-    pub fn from_btree(btree: &BTreeMap<String, String>) -> PortalText {
-        // Serialize BTree to json
-        let btree_as_json = serde_json::to_value(&btree).unwrap();
+    pub fn from_btree(btree: &BTreeMap<String, String>) -> Result<PortalText, MagicError> {
+        btree.iter().for_each(|(key, _)| {
+            println!("key: |{}|", key);
+        });
+        let portal_text = PortalText {
+            xcord: btree["Xcord"].parse::<i32>()?,
+            ycord: btree["Ycord"].parse::<i32>()?,
+            zcord: btree["Zcord"].parse::<i32>()?,
+            locale: btree["Locale"].clone().replace('"', ""),
+            owner: btree["Owner"].clone().replace('"', ""),
+            notes: btree["Notes"].clone().replace('"', ""),
+            true_name: btree["True_Name"].clone().replace('"', ""),
+        };
 
-        // Convert json to Portal Text
-        let mut portal_text: PortalText = serde_json::from_value(btree_as_json).unwrap();
-
-        portal_text
+        Ok(portal_text)
     }
 }
 
@@ -85,6 +92,14 @@ impl NetherPortalText {
         //! Return new String from overworld.true_name's field
         self.overworld.true_name.clone()
     }
+    pub fn build_from(overworld: PortalText, nether: PortalText) -> Self {
+        Self {
+            id: -1,
+            overworld,
+            nether,
+            username: String::default(),
+        }
+    }
     //pub fn convert_np(np: NetherPortal) -> NetherPortalText{
     //    let npt = NetherPortalText {
     //        id: 0,
@@ -106,7 +121,17 @@ impl NetherPortal {
     pub fn add_portal_text(&mut self, pt: PortalText) {
         self.portal_text = SPromise::make_no_promise(pt);
     }
+    pub fn set_pt(&mut self) -> Result<(), MagicError> {
+        //! Set portal_text with converted NetherPortal.as_btree values.
+        let pt = PortalText::from_btree(&self.as_btree)?;
+        self.portal_text.set_value(pt);
+
+        Ok(())
+    }
+
+    // BTree Stuff
     pub fn set_as_btree(&mut self) {
+        //! Create a Btree from PortalText and set it to (as_btree)'s value
         self.as_btree = self.portal_text.ref_value().to_btree();
     }
     pub fn btree_ref(&self) -> &PortalTextBTree {
@@ -150,12 +175,17 @@ pub type NetherPortalBTree = BTreeMap<String, NetherPortal>;
 // The Keys of NetherPortals BTreeMap members should be the PortalText.true_name
 pub struct NetherPortals {
     overworld: BTreeMap<String, NetherPortal>,
+    ow_position: Keys,
     nether: BTreeMap<String, NetherPortal>,
+    nether_position: Keys,
+
+    // Channels
     nether_portal_text_comm: Communicator<NetherPortalText>,
     imager_comm: Communicator<Imager>, // Imager should be a Vec of Imager(s)
-    ow_position: Keys,
-    nether_position: Keys,
+
+    // Misc
     mutate: bool,
+    request: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
 }
 
 impl NetherPortals {
@@ -168,10 +198,26 @@ impl NetherPortals {
             ow_position: Keys::default(),
             nether_position: Keys::default(),
             mutate: bool::default(),
+            request: SPromise::make_no_promise(None),
         }
     }
 
     // Getters
+    pub fn request_ref(&self) -> &SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
+        &self.request
+    }
+    pub fn request_mut(
+        &mut self,
+    ) -> &mut SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
+        &mut self.request
+    }
+    pub fn set_request(
+        &mut self,
+        spromise: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
+    ) {
+        self.request = spromise;
+    }
+
     pub fn overworld_mut(&mut self) -> &mut NetherPortalBTree {
         &mut self.overworld
     }

@@ -6,10 +6,61 @@ pub mod pages;
 
 pub use borkcraft::*;
 use chrono::{Timelike, Utc};
+use windows::error_messages::ErrorMessage;
 
+// Custom Types (For convenience)
 type MagicError = Box<dyn std::error::Error>;
+type MagicSendError = Box<dyn std::error::Error + Send>;
+
+// lifetime sillyness
+//fn subfn<'a, 'b, T>(t: &'a Result<T, MagicError>, f: impl FnOnce(&'b MagicError))
+//where
+//'a: 'b,
+//{
+//if let Err(err) = t {
+//f(err);
+//}
+//}
 
 // Traits
+pub trait HandleError<T> {
+    fn consume_error(self, err_msg: &mut ErrorMessage);
+
+    fn otherwise(self, f: impl FnOnce(&MagicError)) -> Self;
+}
+
+impl<T> HandleError<T> for Result<T, MagicError> {
+    fn consume_error(self, err_msg: &mut ErrorMessage) {
+        if let Err(err) = self {
+            err_msg.push_err(&err.to_string())
+        }
+    }
+    fn otherwise(self, f: impl FnOnce(&MagicError)) -> Self {
+        if let Err(err) = self.as_ref() {
+            f(err);
+        }
+        return self;
+    }
+}
+pub trait StatusCheck {
+    fn status_check(self) -> Result<ureq::Response, ErrorX>;
+}
+
+use crate::err_tools::ErrorX;
+impl StatusCheck for ureq::Response {
+    fn status_check(self) -> Result<ureq::Response, ErrorX> {
+        let status = self.status();
+        let pattern = || format!("status code: -> |{}|", status);
+        match status {
+            202 => Ok(self),
+            403 => Err(ErrorX::new(&format!("Request Denied... {}", pattern()))),
+            _ => Err(ErrorX::new(&format!(
+                "Request was not aproved: {}",
+                pattern()
+            ))),
+        }
+    }
+}
 //pub trait New {
 //    fn new<T>() -> T;
 //}
@@ -155,6 +206,18 @@ pub mod thread_tools {
                 sender: Some(sender),
             }
         }
+        pub fn make_promise() -> (Self, poll_promise::Sender<T>) {
+            let (sender, promise) = Promise::new();
+            (
+                Self {
+                    value: T::default(),
+                    some_promise: Some(promise),
+                    future: None,
+                    sender: None,
+                },
+                sender,
+            )
+        }
         pub fn make_no_promise(value: T) -> Self {
             //! It creates a (type Self) which initializes everything to None except Self.value
             //!
@@ -166,7 +229,23 @@ pub mod thread_tools {
                 sender: None,
             }
         }
+        pub fn spromise_ref(&self) -> &Option<poll_promise::Promise<T>> {
+            &self.some_promise
+        }
+        pub fn sender_ref(&self) -> &Option<poll_promise::Sender<T>> {
+            &self.sender
+        }
+        pub fn take_sender(&mut self) -> Option<poll_promise::Sender<T>> {
+            if let Some(sender) = self.sender.take() {
+                return Some(sender);
+            }
+            None
+        }
         pub fn add_value(&mut self, value: T) {
+            self.value = value
+        }
+
+        pub fn set_value(&mut self, value: T) {
             self.value = value
         }
         pub fn mut_value(&mut self) -> &mut T {
@@ -251,7 +330,7 @@ pub mod err_tools {
     }
 
     impl ErrorX {
-        pub fn _new(msg: &str) -> ErrorX {
+        pub fn new(msg: &str) -> ErrorX {
             ErrorX {
                 details: msg.to_string(),
             }
@@ -277,10 +356,24 @@ pub mod err_tools {
 }
 
 pub mod url_tools {
+    use super::err_tools::ErrorX;
     use serde::Serialize;
 
     pub fn to_vec8(cereal: &impl Serialize) -> Vec<u8> {
         serde_json::to_vec(cereal).unwrap()
+    }
+
+    pub fn status_check(response: &ureq::Response) -> Result<(), ErrorX> {
+        let status = response.status();
+        let pattern = || format!("status code: -> |{}|", status);
+        match status {
+            202 => Ok(()),
+            403 => Err(ErrorX::new(&format!("Request Denied... {}", pattern()))),
+            _ => Err(ErrorX::new(&format!(
+                "Request was not aproved: {}",
+                pattern()
+            ))),
+        }
     }
 
     pub enum Routes {
