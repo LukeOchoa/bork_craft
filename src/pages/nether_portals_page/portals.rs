@@ -172,6 +172,7 @@ impl Keys {
 }
 
 pub type NetherPortalBTree = BTreeMap<String, NetherPortal>;
+
 // The Keys of NetherPortals BTreeMap members should be the PortalText.true_name
 pub struct NetherPortals {
     overworld: BTreeMap<String, NetherPortal>,
