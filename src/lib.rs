@@ -6,6 +6,7 @@ pub mod pages;
 
 pub use borkcraft::*;
 use chrono::{Timelike, Utc};
+use std::collections::HashMap;
 use windows::error_messages::ErrorMessage;
 
 // Custom Types (For convenience)
@@ -47,16 +48,26 @@ pub trait StatusCheck {
 }
 
 use crate::err_tools::ErrorX;
+fn reason(resp: ureq::Response) -> String {
+    println!("passed");
+    let msg: HashMap<String, String> = serde_json::from_reader(resp.into_reader()).unwrap();
+    format!("Reason: -> |{}|\n", msg["error"])
+}
 impl StatusCheck for ureq::Response {
     fn status_check(self) -> Result<ureq::Response, ErrorX> {
         let status = self.status();
         let pattern = || format!("status code: -> |{}|", status);
         match status {
             202 => Ok(self),
-            403 => Err(ErrorX::new(&format!("Request Denied... {}", pattern()))),
+            403 => Err(ErrorX::new(&format!(
+                "Request Denied... {}\n{}",
+                pattern(),
+                reason(self)
+            ))),
             _ => Err(ErrorX::new(&format!(
-                "Request was not aproved: {}",
-                pattern()
+                "Request was not aproved: {}\nReason: -> |{}|",
+                pattern(),
+                reason(self)
             ))),
         }
     }
@@ -230,6 +241,7 @@ pub mod thread_tools {
             }
         }
         pub fn spromise_ref(&self) -> &Option<poll_promise::Promise<T>> {
+            //! Return ref to promise inside SPromise
             &self.some_promise
         }
         pub fn sender_ref(&self) -> &Option<poll_promise::Sender<T>> {

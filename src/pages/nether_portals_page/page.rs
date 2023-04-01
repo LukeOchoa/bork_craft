@@ -7,13 +7,13 @@ use crate::{
         portals::{NetherPortals, PortalText},
     },
     thread_tools::SPromise,
-    time_of_day,
     url_tools::{Routes, Urls},
     windows::{client_windows::Loglet, error_messages::ErrorMessage},
     HandleError, MagicError, StatusCheck,
 };
 use eframe::egui::Ui;
-use std::sync::{mpsc::Sender, Once};
+use std::sync::mpsc::Sender;
+use std::sync::Once;
 use tokio::runtime::Runtime;
 
 use super::{display::displayer, portals::NetherPortalText};
@@ -48,12 +48,12 @@ fn save_this_change(
     };
 
     // Get Refs to BOTH nether&overworld btrees
-    let neth_btree = nether_portals
+    let ow_btree = nether_portals
         .overworld_ref()
         .get(ow_key)
         .ok_or(ErrorX::new_box(&errmsg(ow_key)))?
         .btree_ref();
-    let ow_btree = nether_portals
+    let neth_btree = nether_portals
         .nether_ref()
         .get(neth_key)
         .ok_or(ErrorX::new_box(&errmsg(ow_key)))?
@@ -64,19 +64,23 @@ fn save_this_change(
     let nether = PortalText::from_btree(neth_btree)?;
 
     // Build a NetherPortalText the PortalTexts
-    let npt = NetherPortalText::build_from(overworld, nether);
+    let ow_id = nether_portals.overworld_ref()[ow_key].get_id();
+    let neth_id = nether_portals.nether_ref()[neth_key].get_id();
+    let id = if ow_id < 0 { neth_id } else { ow_id };
+
+    let npt = NetherPortalText::build_from(id, overworld, nether);
 
     // Create a notifier
     let (spromise, sender) = SPromise::make_promise();
     nether_portals.set_request(spromise);
 
-    //let sender = nether_portals.request_mut().take_sender().unwrap();
+    // spawn a async thread to handle the request
     runtime.spawn(async move {
         let subfn = || -> Result<(), MagicError> {
             save_nether_portal(npt)?.status_check()?;
-            //Ok(())
-            Err(ErrorX::new_box("This is just a test error"))
+            Ok(())
         };
+        // Some == Err() & None == Ok(); Result<> doesnt impl Default so i couldn't use it lol
         if let Err(err) = subfn() {
             sender.send(Some(err.to_string()))
         } else {
@@ -188,6 +192,17 @@ fn save(
     Ok(())
 }
 
+fn reload(
+    nether_portal_sender: Sender<NetherPortalText>,
+    err_msg_sender: Sender<Loglet>,
+    runtime: &Runtime,
+    ui: &mut Ui,
+) {
+    if ui.button("Reload From DB").clicked() {
+        download_nether_portals(nether_portal_sender, err_msg_sender, runtime);
+    }
+}
+
 // Big Boi Function
 pub fn display_nether_portals_page(
     nether_portals: &mut NetherPortals,
@@ -206,7 +221,16 @@ pub fn display_nether_portals_page(
 
     setup_displayables(nether_portals);
 
-    save(nether_portals, runtime, ui).consume_error(err_msg);
+    // Buttons
+    ui.horizontal(|ui| {
+        save(nether_portals, runtime, ui).consume_error(err_msg);
+        reload(
+            nether_portals.npt_sender_clone(),
+            err_msg.sender_clone(),
+            &runtime,
+            ui,
+        );
+    });
 
     displayer(nether_portals, unique, ui);
 

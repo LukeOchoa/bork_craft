@@ -1,17 +1,9 @@
 use eframe::egui::Ui;
 use egui_extras::{Column, TableBuilder};
 use std::collections::BTreeMap;
-use std::sync::mpsc::Sender;
 
-use super::portals::{NetherPortal, NetherPortalText, NetherPortals, PortalText};
-use crate::{
-    increment::Inc,
-    thread_tools::SPromise,
-    time_of_day,
-    url_tools::{Routes, Urls},
-    windows::client_windows::Loglet,
-    MagicError,
-};
+use super::portals::NetherPortals;
+use crate::increment::Inc;
 
 fn quick_table(ui: &mut Ui, columns: usize, reset: bool) -> TableBuilder {
     //! Just for settings up a simple table
@@ -58,12 +50,16 @@ fn quick_table(ui: &mut Ui, columns: usize, reset: bool) -> TableBuilder {
     table
 }
 
-fn portal_text_displayer(displayable_pt: &BTreeMap<String, String>, table: TableBuilder) {
+fn portal_text_displayer(
+    displayable_pt: &BTreeMap<String, String>,
+    table: TableBuilder,
+    name: &str,
+) {
     // Use that table bby!
     table
         .header(20.0, |mut header| {
             header.col(|ui| {
-                ui.strong("Type");
+                ui.strong(format!("{}: Type", name));
             });
             header.col(|ui| {
                 ui.strong("Details");
@@ -84,11 +80,15 @@ fn portal_text_displayer(displayable_pt: &BTreeMap<String, String>, table: Table
         })
 }
 
-fn portal_text_displayer_mut(displayable_pt: &mut BTreeMap<String, String>, table: TableBuilder) {
+fn portal_text_displayer_mut(
+    displayable_pt: &mut BTreeMap<String, String>,
+    table: TableBuilder,
+    name: &str,
+) {
     table
         .header(20.0, |mut header| {
             header.col(|ui| {
-                ui.strong("Type");
+                ui.strong(format!("{}: Type", name));
             });
             header.col(|ui| {
                 ui.strong("Details");
@@ -204,11 +204,11 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
             ui.push_id(unique.up_str(), |ui| {
                 // Create a table
                 let table = quick_table(ui, 1, reset);
-
                 // Display Content
+                let name = "overworld";
                 match mutate {
-                    true => portal_text_displayer_mut(&mut display_portal.btree_mut(), table),
-                    false => portal_text_displayer(display_portal.btree_ref(), table),
+                    true => portal_text_displayer_mut(&mut display_portal.btree_mut(), table, name),
+                    false => portal_text_displayer(display_portal.btree_ref(), table, name),
                 }
                 //portal_text_displayer(display_portal.btree_ref(), table);
             });
@@ -221,10 +221,10 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
         .and_then(|display_portal| {
             ui.push_id(unique.up_str(), |ui| {
                 let table = quick_table(ui, 1, reset);
-
+                let name = "nether";
                 match mutate {
-                    true => portal_text_displayer(&mut &display_portal.btree_mut(), table),
-                    false => portal_text_displayer(display_portal.btree_ref(), table),
+                    true => portal_text_displayer(&mut &display_portal.btree_mut(), table, name),
+                    false => portal_text_displayer(display_portal.btree_ref(), table, name),
                 }
             });
 

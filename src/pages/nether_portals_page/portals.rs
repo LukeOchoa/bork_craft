@@ -54,9 +54,6 @@ impl PortalText {
         new_btree
     }
     pub fn from_btree(btree: &BTreeMap<String, String>) -> Result<PortalText, MagicError> {
-        btree.iter().for_each(|(key, _)| {
-            println!("key: |{}|", key);
-        });
         let portal_text = PortalText {
             xcord: btree["Xcord"].parse::<i32>()?,
             ycord: btree["Ycord"].parse::<i32>()?,
@@ -92,9 +89,9 @@ impl NetherPortalText {
         //! Return new String from overworld.true_name's field
         self.overworld.true_name.clone()
     }
-    pub fn build_from(overworld: PortalText, nether: PortalText) -> Self {
+    pub fn build_from(id: i32, overworld: PortalText, nether: PortalText) -> Self {
         Self {
-            id: -1,
+            id,
             overworld,
             nether,
             username: String::default(),
@@ -112,12 +109,16 @@ type F = Box<dyn Future<Output = ()> + Unpin>;
 type PortalTextBTree = BTreeMap<String, String>;
 // Images should be stored by keys with their name
 pub struct NetherPortal {
+    original_id: i32,
     portal_text: SPromise<PortalText, F>,
     as_btree: PortalTextBTree,
     images: BTreeMap<String, SPromise<Imager, F>>,
 }
 
 impl NetherPortal {
+    pub fn get_id(&self) -> i32 {
+        self.original_id
+    }
     pub fn add_portal_text(&mut self, pt: PortalText) {
         self.portal_text = SPromise::make_no_promise(pt);
     }
@@ -343,6 +344,7 @@ impl NetherPortals {
     }
 
     pub fn consume_npt_helper(
+        original_id: i32,
         key: String,
         np_list: &mut BTreeMap<String, NetherPortal>,
         pt: PortalText,
@@ -355,6 +357,7 @@ impl NetherPortals {
             false => {
                 // if Key DOES NOT exist, INSERT new value
                 let overworld_np = NetherPortal {
+                    original_id,
                     portal_text: SPromise::make_no_promise(pt),
                     as_btree: BTreeMap::new(),
                     images: BTreeMap::new(),
@@ -370,14 +373,17 @@ impl NetherPortals {
         //! Take its members and give them to NetherPortals struct
 
         // Take/Append OverWorld (use mem::take to avoid Partial Move|| maybe rust will update compiler to fix this?)
-        let key = npt.ow_true_name();
+        let og_id = npt.id;
+
+        //let key = npt.ow_true_name();
+        let key = npt.ow_true_name() + "1";
         let overworld = mem::take(&mut npt.overworld);
-        Self::consume_npt_helper(key, &mut self.overworld, overworld);
+        Self::consume_npt_helper(og_id, key, &mut self.overworld, overworld);
 
         // Take/Append Nether
-        let key = npt.nether_true_name();
+        let key = npt.nether_true_name() + "1";
         let nether = npt.nether;
-        Self::consume_npt_helper(key, &mut self.nether, nether);
+        Self::consume_npt_helper(og_id, key, &mut self.nether, nether);
     }
 
     //pub fn add_imager_to_nether_portal(&mut self, key: String, imager: Imager) {
