@@ -157,7 +157,7 @@ fn is_request_processing(np: &NetherPortals, ui: &mut Ui) -> Result<(), MagicErr
     }
 }
 
-fn save(
+fn save_npt(
     nether_portals: &mut NetherPortals,
     runtime: &Runtime,
     ui: &mut Ui,
@@ -192,7 +192,7 @@ fn save(
     Ok(())
 }
 
-fn reload(
+fn reload_npt(
     nether_portal_sender: Sender<NetherPortalText>,
     err_msg_sender: Sender<Loglet>,
     runtime: &Runtime,
@@ -223,8 +223,8 @@ pub fn display_nether_portals_page(
 
     // Buttons
     ui.horizontal(|ui| {
-        save(nether_portals, runtime, ui).consume_error(err_msg);
-        reload(
+        save_npt(nether_portals, runtime, ui).consume_error(err_msg);
+        reload_npt(
             nether_portals.npt_sender_clone(),
             err_msg.sender_clone(),
             &runtime,
