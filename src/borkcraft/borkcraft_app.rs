@@ -90,6 +90,8 @@ impl Default for BorkCraft {
         }
     }
 }
+// Temp use statement, Delete later...
+use crate::pages::nether_portals_page::download_images::display_nether_portal_images;
 impl BorkCraft {
     fn update_updaters(&mut self) {
         self.unique.reset();
@@ -117,6 +119,20 @@ impl BorkCraft {
                     ui,
                 );
             }
+            _ => {
+                ui.label("In development. Sorry...");
+            }
+        }
+    }
+    fn handle_image_pages(&mut self, ui: &mut Ui) {
+        match &self.base_page.get_selected_option() as &str {
+            "Login" => {}
+            "Nether Portals" => display_nether_portal_images(
+                &mut self.nether_portals,
+                &self.runtime,
+                self.err_msg.sender_clone(),
+                ui,
+            ),
             _ => {
                 ui.label("In development. Sorry...");
             }
@@ -189,7 +205,8 @@ impl eframe::App for BorkCraft {
                 });
         });
 
-        egui::CentralPanel::default().show(ctx, |_ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.handle_image_pages(ui);
             // do work
         });
 

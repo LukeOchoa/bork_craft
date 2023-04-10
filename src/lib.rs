@@ -7,7 +7,10 @@ pub mod pages;
 pub use borkcraft::*;
 use chrono::{Timelike, Utc};
 use std::collections::HashMap;
+use std::sync::mpsc::Sender;
 use windows::error_messages::ErrorMessage;
+
+use crate::windows::client_windows::Loglet;
 
 // Custom Types (For convenience)
 type MagicError = Box<dyn std::error::Error>;
@@ -28,6 +31,8 @@ pub trait HandleError<T> {
     fn consume_error(self, err_msg: &mut ErrorMessage);
 
     fn otherwise(self, f: impl FnOnce(&MagicError)) -> Self;
+
+    fn send_error(self, err_msg_sender: Sender<Loglet>) -> Self;
 }
 
 impl<T> HandleError<T> for Result<T, MagicError> {
@@ -35,6 +40,14 @@ impl<T> HandleError<T> for Result<T, MagicError> {
         if let Err(err) = self {
             err_msg.push_err(&err.to_string())
         }
+    }
+    fn send_error(self, err_msg_sender: Sender<Loglet>) -> Self {
+        if let Err(err) = &self {
+            err_msg_sender
+                .send(Loglet::err_s(&err.to_string()))
+                .unwrap()
+        }
+        return self;
     }
     fn otherwise(self, f: impl FnOnce(&MagicError)) -> Self {
         if let Err(err) = self.as_ref() {
@@ -212,6 +225,15 @@ pub mod thread_tools {
             let (sender, promise) = Promise::new();
             Self {
                 value: T::default(),
+                some_promise: Some(promise),
+                future: None,
+                sender: Some(sender),
+            }
+        }
+        pub fn create_promise(value: T) -> Self {
+            let (sender, promise) = Promise::new();
+            Self {
+                value,
                 some_promise: Some(promise),
                 future: None,
                 sender: Some(sender),
@@ -498,6 +520,15 @@ pub mod eframe_tools {
                     });
             });
         }
+    }
+
+    pub fn display_retained_image(
+        retained_image: &egui_extras::RetainedImage,
+        ui: &mut eframe::egui::Ui,
+    ) {
+        let mut size = retained_image.size_vec2();
+        size *= (ui.available_width() / size.x).min(1.0);
+        retained_image.show_size(ui, size);
     }
 }
 

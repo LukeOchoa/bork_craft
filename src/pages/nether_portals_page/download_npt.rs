@@ -1,7 +1,6 @@
 use super::portals::NetherPortalText;
 use crate::{
     err_tools::ErrorX,
-    images::Imager,
     time_of_day,
     url_tools::{Routes, Urls},
     windows::client_windows::Loglet,
@@ -140,66 +139,3 @@ pub fn download_nether_portals(
         }
     });
 }
-
-//async fn send_nether_portal_texts(
-//    nether_portal_sender: Sender<NetherPortalText>,
-//) -> Result<(), MagicError> {
-//    // Gets all nether portals within the estimate limit
-//    let mut nether_portal_text_bunchs = fetch_all_nether_portals().await?;
-//
-//    // send each npt with a channel sender to the main thread's NetherPortals(data struct)
-//    for (_, nether_portal_text) in nether_portal_text_bunchs.drain() {
-//        nether_portal_sender.send(nether_portal_text)?
-//    }
-//
-//    Ok(())
-//}
-//
-//async fn fetch_all_nether_portals() -> Result<NetherPortalTextBunch, MagicError> {
-//    let estimate = estimate_nether_portals_count()?;
-//    let limit = 5; // Buffer Size
-//
-//    let nether_portal_text_bunchs;
-//
-//    // If estimate is larger(>100) than 100: True => Do multithreaded; False => Sync
-//    nether_portal_text_bunchs = if estimate > 100 {
-//        NetherPortalTextBunch::new()
-//        // TODO
-//    } else if estimate > 0 {
-//        sync_fetch_all_nether_portals(limit)?
-//    } else {
-//        // There are no Rows in the database.
-//        // The Big Sadge (because there are no entrys.. because no one uses this lol)
-//        NetherPortalTextBunch::new()
-//    };
-//
-//    Ok(nether_portal_text_bunchs)
-//}
-//
-//fn sync_fetch_all_nether_portals(limit: i32) -> Result<NetherPortalTextBunch, MagicError> {
-//    let offset = -1; // Starting point for scrapping the db table
-//
-//    // The One-True Overlord of Nether Portal Bunchs: Portahlus Bunchaccous!
-//    let mut master_bunch = NetherPortalTextBunch::new();
-//
-//    // Loop until you have all bunchs from rest api
-//    loop {
-//        // Get a bunch of nether portals from Rest API as response
-//        let response = batch_fetch_nether_portal_text(offset, limit)?;
-//
-//        // Convert Response
-//        let bunch: NetherPortalTextBunch = response_to_nether_portal_bunch(response)?;
-//
-//        // if the bunch is empty or bunch is less than(<limit) limit, Fetching is finished
-//        if bunch.is_empty() || (bunch.len() as i32) < limit {
-//            master_bunch.extend(bunch);
-//            break;
-//        }
-//
-//        // Append to Master Bunch
-//        master_bunch.extend(bunch);
-//    }
-//
-//    // Return the master to its harvest!
-//    Ok(master_bunch)
-//}

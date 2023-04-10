@@ -113,6 +113,48 @@ pub struct NetherPortal {
     portal_text: SPromise<PortalText, F>,
     as_btree: PortalTextBTree,
     images: BTreeMap<String, SPromise<Imager, F>>,
+    image_position: String,
+    image_list_request: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
+}
+
+impl NetherPortal {
+    // IMAGE FUNCTIONS
+
+    // Getters
+    pub fn image_pos_ref(&self) -> &String {
+        &self.image_position
+    }
+
+    pub fn image_pos_mut(&mut self) -> &mut String {
+        &mut self.image_position
+    }
+
+    pub fn images_ref(&self) -> &BTreeMap<String, SPromise<Imager, F>> {
+        &self.images
+    }
+
+    pub fn images_mut(&mut self) -> &mut BTreeMap<String, SPromise<Imager, F>> {
+        &mut self.images
+    }
+
+    pub fn img_list_req_ref(
+        &self,
+    ) -> &SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
+        &self.image_list_request
+    }
+
+    // Setters
+    pub fn set_image_pos(&mut self) -> Option<()> {
+        //! initialize the image position if its empty. None== there is no key;
+        if self.image_position == String::default() {
+            for (key, imager) in self.images.iter() {
+                imager.spromise_ref().as_ref()?.ready()?;
+                self.image_position = key.clone();
+                return Some(());
+            }
+        }
+        None
+    }
 }
 
 impl NetherPortal {
@@ -187,7 +229,7 @@ pub struct NetherPortals {
 
     // Misc
     mutate: bool,
-    request: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
+    text_request: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
 }
 
 impl NetherPortals {
@@ -200,24 +242,26 @@ impl NetherPortals {
             ow_position: Keys::default(),
             nether_position: Keys::default(),
             mutate: bool::default(),
-            request: SPromise::make_no_promise(None),
+            text_request: SPromise::make_no_promise(None),
         }
     }
 
     // Getters
-    pub fn request_ref(&self) -> &SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
-        &self.request
+    pub fn text_request_ref(
+        &self,
+    ) -> &SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
+        &self.text_request
     }
-    pub fn request_mut(
+    pub fn text_request_mut(
         &mut self,
     ) -> &mut SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>> {
-        &mut self.request
+        &mut self.text_request
     }
-    pub fn set_request(
+    pub fn set_text_request(
         &mut self,
         spromise: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
     ) {
-        self.request = spromise;
+        self.text_request = spromise;
     }
 
     pub fn overworld_mut(&mut self) -> &mut NetherPortalBTree {
@@ -361,6 +405,8 @@ impl NetherPortals {
                     portal_text: SPromise::make_no_promise(pt),
                     as_btree: BTreeMap::new(),
                     images: BTreeMap::new(),
+                    image_position: String::default(),
+                    image_list_request: SPromise::make_no_promise(None),
                 };
                 np_list.insert(key, overworld_np);
             }
@@ -376,12 +422,12 @@ impl NetherPortals {
         let og_id = npt.id;
 
         //let key = npt.ow_true_name();
-        let key = npt.ow_true_name() + "1";
+        let key = npt.ow_true_name();
         let overworld = mem::take(&mut npt.overworld);
         Self::consume_npt_helper(og_id, key, &mut self.overworld, overworld);
 
         // Take/Append Nether
-        let key = npt.nether_true_name() + "1";
+        let key = npt.nether_true_name();
         let nether = npt.nether;
         Self::consume_npt_helper(og_id, key, &mut self.nether, nether);
     }
