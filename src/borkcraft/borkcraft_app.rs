@@ -5,10 +5,10 @@ use crate::{
     increment::Inc,
     pages::{
         login::{login_page, LoginForm},
-        nether_portals_page::{page::display_nether_portals_page, portals::NetherPortals},
-        //nether_portals_page::nether_portals_page,
-        //nether_portals_page_options::portals::NetherPortals,
-        //NetherPortals,
+        nether_portals_page::{
+            display_images::display_nether_portal_images, page::display_nether_portals_page,
+            portals::NetherPortals,
+        },
     },
     sessions::{current_session_time, SessionInfo, SessionTime},
     time_of_day,
@@ -90,8 +90,7 @@ impl Default for BorkCraft {
         }
     }
 }
-// Temp use statement, Delete later...
-use crate::pages::nether_portals_page::download_images::display_nether_portal_images;
+
 impl BorkCraft {
     fn update_updaters(&mut self) {
         self.unique.reset();
@@ -207,7 +206,6 @@ impl eframe::App for BorkCraft {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             self.handle_image_pages(ui);
-            // do work
         });
 
         // update

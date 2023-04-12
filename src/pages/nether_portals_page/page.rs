@@ -1,6 +1,5 @@
 use crate::{
     err_tools::ErrorX,
-    images::Imager,
     increment::Inc,
     pages::nether_portals_page::{
         download_npt::download_nether_portals,
@@ -135,7 +134,7 @@ fn setup_displayables(nether_portals: &mut NetherPortals) {
 
 fn is_request_processing(np: &NetherPortals, ui: &mut Ui) -> Result<(), MagicError> {
     // Bind let: if  there is currently a Promise to uphold inside SPromise
-    let promise = match np.text_request_ref().spromise_ref().as_ref() {
+    let promise = match np.text_request_ref().spromise_ref() {
         Some(promise) => promise,
         None => return Ok(()),
     };
@@ -231,91 +230,8 @@ pub fn display_nether_portals_page(
             ui,
         );
     });
-    //test_downloading_images(nether_portals, runtime, err_msg.sender_clone(), ui);
 
     displayer(nether_portals, unique, ui);
 
     check_promises();
-}
-
-use crate::images::ImageDetailsList;
-use crate::pages::nether_portals_page::download_images::{
-    get_image_details_list, load_images_as_queue,
-};
-fn test_merge_image_details_to_nether_portals(
-    mut image_details_list: ImageDetailsList,
-    np: &mut NetherPortals,
-) {
-    let imager_list = np.nether_mut().get_mut("World Spawn").unwrap().images_mut();
-    for (_key, image_details) in image_details_list.drain() {
-        let name = image_details.name.clone();
-        let imager = Imager::new(name.clone(), Some(image_details), None);
-        imager_list.insert(name, SPromise::create_promise(imager));
-    }
-
-    //for (key, imager) in np
-    //.nether_mut()
-    //.get_mut("World Spawn")
-    //.unwrap()
-    //.images_mut()
-    //.iter_mut()
-    //{
-    //let image_details
-    //imager.set_value(Imager::new(, , ))
-    //}
-}
-fn test_downloading_images(
-    np: &mut NetherPortals,
-    runtime: &Runtime,
-    err_msg_sender: Sender<Loglet>,
-    ui: &mut Ui,
-) {
-    if ui.button("Download Images?").clicked() {
-        match get_image_details_list("World Spawn".to_string()) {
-            Ok(idl) => {
-                test_merge_image_details_to_nether_portals(idl, np);
-                load_images_as_queue(
-                    np.nether_mut().get_mut("World Spawn").unwrap(),
-                    runtime,
-                    err_msg_sender,
-                );
-            }
-            Err(err) => {
-                err_msg_sender.send(Loglet::err(err)).unwrap();
-            }
-        }
-    }
-
-    if ui.button("Display Images").clicked() {
-        let nether_portal = np.nether_mut().get_mut("World Spawn").unwrap();
-        if *nether_portal.image_pos_mut() == String::default() {
-            let (key, _) = nether_portal.images_mut().first_key_value().unwrap();
-            *nether_portal.image_pos_mut() = key.clone();
-        }
-    }
-
-    if let Some(nether_portal) = np.nether_ref().get("World Spawn") {
-        let key = nether_portal.image_pos_ref().clone();
-        if key != String::default() {
-            let r_image = nether_portal
-                .images_ref()
-                .get(&key)
-                .unwrap()
-                .spromise_ref()
-                .as_ref()
-                .unwrap()
-                .ready()
-                .unwrap()
-                .image_ref()
-                .as_ref()
-                .unwrap();
-            display_retained_image(r_image, ui);
-        }
-    }
-}
-
-fn display_retained_image(retained_image: &egui_extras::RetainedImage, ui: &mut eframe::egui::Ui) {
-    let mut size = retained_image.size_vec2();
-    size *= (ui.available_width() / size.x).min(1.0);
-    retained_image.show_size(ui, size);
 }

@@ -148,7 +148,7 @@ impl NetherPortal {
         //! initialize the image position if its empty. None== there is no key;
         if self.image_position == String::default() {
             for (key, imager) in self.images.iter() {
-                imager.spromise_ref().as_ref()?.ready()?;
+                imager.spromise_ref()?.ready()?;
                 self.image_position = key.clone();
                 return Some(());
             }

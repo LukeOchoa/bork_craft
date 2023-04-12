@@ -68,10 +68,10 @@ impl Imager {
     pub fn get_name(&self) -> String {
         self.name.clone()
     }
-    pub fn image_details_ref(&self) -> &Option<ImageDetails> {
-        &self.image_details
+    pub fn image_details_ref(&self) -> Option<&ImageDetails> {
+        self.image_details.as_ref()
     }
-    pub fn image_ref(&self) -> &Option<RetainedImage> {
-        &self.image
+    pub fn image_ref(&self) -> Option<&RetainedImage> {
+        self.image.as_ref()
     }
 }

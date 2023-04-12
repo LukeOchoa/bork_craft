@@ -262,9 +262,9 @@ pub mod thread_tools {
                 sender: None,
             }
         }
-        pub fn spromise_ref(&self) -> &Option<poll_promise::Promise<T>> {
+        pub fn spromise_ref(&self) -> Option<&poll_promise::Promise<T>> {
             //! Return ref to promise inside SPromise
-            &self.some_promise
+            self.some_promise.as_ref()
         }
         pub fn sender_ref(&self) -> &Option<poll_promise::Sender<T>> {
             &self.sender
