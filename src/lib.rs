@@ -14,7 +14,7 @@ use crate::windows::client_windows::Loglet;
 
 // Custom Types (For convenience)
 type MagicError = Box<dyn std::error::Error>;
-type MagicSendError = Box<dyn std::error::Error + Send>;
+// type MagicSendError = Box<dyn std::error::Error + Send>;
 
 // lifetime sillyness
 //fn subfn<'a, 'b, T>(t: &'a Result<T, MagicError>, f: impl FnOnce(&'b MagicError))
@@ -25,6 +25,21 @@ type MagicSendError = Box<dyn std::error::Error + Send>;
 //f(err);
 //}
 //}
+
+// Enums
+pub enum Realm {
+    Overworld,
+    Nether,
+}
+
+impl Realm {
+    pub fn matcher<T>(&self, overworld: T, nether: T) -> T {
+        match self {
+            Self::Overworld => overworld,
+            Self::Nether => nether,
+        }
+    }
+}
 
 // Traits
 pub trait HandleError<T> {
@@ -56,6 +71,7 @@ impl<T> HandleError<T> for Result<T, MagicError> {
         return self;
     }
 }
+
 pub trait StatusCheck {
     fn status_check(self) -> Result<ureq::Response, ErrorX>;
 }
@@ -270,6 +286,13 @@ pub mod thread_tools {
             &self.sender
         }
         pub fn take_sender(&mut self) -> Option<poll_promise::Sender<T>> {
+            // This stupid freaking lib will just throw a panic if the promise is dropped...
+            // Never use this again!
+            // Just check if the promise exists first LOL THEN check/take the sender
+            //self.some_promise.as_ref()?;
+            if let Some(_) = self.some_promise {
+                println!("There is a promise here bois!")
+            }
             if let Some(sender) = self.sender.take() {
                 return Some(sender);
             }
@@ -496,30 +519,56 @@ pub mod eframe_tools {
         selected_option: String,
         options: Vec<String>,
         name: String,
+        event: Option<()>,
     }
 
     impl ModalMachine {
+        pub fn default() -> Self {
+            Self {
+                selected_option: "".to_string(),
+                options: Vec::new(),
+                name: "".to_string(),
+                event: None,
+            }
+        }
+
         pub fn new(selected_option: String, options: Vec<String>, name: String) -> Self {
             Self {
                 selected_option,
                 options,
                 name,
+                event: None,
             }
         }
+
         pub fn get_selected_option(&self) -> String {
             self.selected_option.clone()
         }
+
         pub fn modal_machine(&mut self, id: i64, ui: &mut Ui) {
             ui.push_id(id, |ui| {
                 eframe::egui::ComboBox::from_label(&self.name)
                     .selected_text(&self.selected_option)
                     .show_ui(ui, |ui| {
                         self.options.iter().for_each(|option| {
-                            ui.selectable_value(&mut self.selected_option, option.clone(), option);
+                            if ui
+                                .selectable_value(&mut self.selected_option, option.clone(), option)
+                                .clicked()
+                            {
+                                self.event = Some(());
+                            };
                         });
                     });
             });
         }
+
+        pub fn use_event(&mut self) -> Option<()> {
+            self.event.take()
+        }
+
+        //pub fn use_event_ref(&mut self, func: impl FnOnce(&Self)) {
+        //    func(&self);
+        //}
     }
 
     pub fn display_retained_image(

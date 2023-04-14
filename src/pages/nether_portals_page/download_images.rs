@@ -1,4 +1,5 @@
 use super::portals::{NetherPortal, NetherPortals};
+use crate::eframe_tools::ModalMachine;
 use crate::images::{ImageDetails, ImageDetailsList, Imager, ImagerList};
 use crate::thread_tools::SPromise;
 use crate::url_tools::{Routes, Urls};
@@ -53,10 +54,11 @@ fn get_imager(image_details: ImageDetails) -> Result<Imager, MagicError> {
 
 pub fn some_retained_image(np: &mut NetherPortal) -> Option<&RetainedImage> {
     // A image will not be selected initially, so make sure to set one before you try to display it/get a key! because it will be blank if you dont...
-    np.set_image_pos();
+    np.init_img_pos();
 
     // Get the position/key
     let key = np.image_pos_ref();
+    println!("another image pos: |{}|", key);
 
     // dot into BTree of (struct Imager) -> into a specific (struct SPromise) -> check if its done downloading -> get a reference to the image
     let retained_image = np
@@ -111,31 +113,42 @@ fn merge_image_details_to_nether_portals(
 fn execute_futures(np: &mut NetherPortal, runtime: &Runtime, err_msg_sender: Sender<Loglet>) {
     let mut list_of_futures = Vec::new();
 
-    np.images_mut().iter_mut().for_each(|(_, spromise_imager)| {
-        // Create Senders for async/thread communication
-        let imager_sender = spromise_imager.take_sender().unwrap();
-        let em_sender = err_msg_sender.clone();
+    //np.images_mut().iter_mut().for_each(|(_, spromise_imager)| {
+    for (_, spromise_imager) in np.images_mut().iter_mut() {
+        || -> Option<()> {
+            // Create Senders for async/thread communication
+            let imager_sender = spromise_imager.take_sender()?;
+            let em_sender = err_msg_sender.clone();
 
-        // Clone the struct ImageDetails from inside struct Imager; It has to be 'Send'-able, so plain refs dont work
-        let image_details = spromise_imager
-            .ref_value()
-            .image_details_ref()
-            .unwrap()
-            .clone();
+            // Clone the struct ImageDetails from inside struct Imager; It has to be 'Send'-able, so plain refs dont work
+            let image_details = spromise_imager
+                .ref_value()
+                .image_details_ref()
+                .unwrap()
+                .clone();
 
-        // Create a closure to be performed asyncronously/threaded and spawn a tokio thread
-        let fut = move || match get_imager(image_details) {
-            Ok(imager) => {
-                println!("Image Sent!");
-                imager_sender.send(imager);
-            }
-            Err(err) => {
-                em_sender.send(Loglet::err(err)).unwrap();
-            }
-        };
+            // Create a closure to be performed asyncronously/threaded and spawn a tokio thread
+            let fut = move || match get_imager(image_details.clone()) {
+                Ok(imager) => {
+                    println!("Image Sent!");
+                    imager_sender.send(imager);
+                }
+                Err(err) => {
+                    em_sender.send(Loglet::err(err)).unwrap();
+                    // the sender has to be used otherwise it will through a panic if its dropped before use...
+                    imager_sender.send(Imager::new(
+                        image_details.name.clone(),
+                        Some(image_details),
+                        None,
+                    ))
+                }
+            };
 
-        list_of_futures.push(fut);
-    });
+            list_of_futures.push(fut);
+            Some(())
+        }();
+    }
+    //});
 
     // Then spawn a thread for the futures. Let ToKIoOOoOO #ThePRIMEagen do its magic
     for task in list_of_futures.into_iter() {
@@ -166,6 +179,33 @@ pub fn load_images(
 
     // Use all those SHOVED values to Execute image calls as a async/thread
     execute_futures(np, runtime, err_msg_sender);
+
+    Some(())
+}
+
+pub fn reload_image_mm(nps: &mut NetherPortals, realm: &crate::Realm, id: String) -> Option<()> {
+    // Get the chosen nether portal key
+    let position = nps.realm_pos(realm)?;
+
+    // Chosen realm is just a convienence variable
+    let chosen_realm = nps.realm_ref(realm).get(&position)?;
+
+    // Take all the image keys and convert to an arrary
+    let options: Vec<String> = chosen_realm.images_ref().keys().cloned().collect();
+
+    // Get the current image selected
+    let selected_option = options.first()?.to_owned();
+
+    // Create a struct ModalMachine to assign
+    let mm = ModalMachine::new(
+        selected_option,
+        options,
+        "Overworld Images List".to_string(),
+    );
+
+    // Assign the current ModalMachine
+    nps.set_image_modal(realm, mm);
+    println!("Finished!");
 
     Some(())
 }

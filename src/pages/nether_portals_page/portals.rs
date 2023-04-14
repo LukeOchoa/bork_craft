@@ -8,9 +8,10 @@ use serde_derive::{Deserialize, Serialize};
 
 //windows::client_windows::Loglet,
 use crate::{
+    eframe_tools::ModalMachine,
     images::Imager,
     thread_tools::{Communicator, SPromise},
-    MagicError,
+    MagicError, Realm,
 };
 use std::mem;
 
@@ -120,6 +121,9 @@ pub struct NetherPortal {
 impl NetherPortal {
     // IMAGE FUNCTIONS
 
+    // Experimental
+    // =================>
+
     // Getters
     pub fn image_pos_ref(&self) -> &String {
         &self.image_position
@@ -144,9 +148,13 @@ impl NetherPortal {
     }
 
     // Setters
-    pub fn set_image_pos(&mut self) -> Option<()> {
+    pub fn img_pos_set(&mut self, pos: String) {
+        *self.image_pos_mut() = pos;
+    }
+    pub fn init_img_pos(&mut self) -> Option<()> {
         //! initialize the image position if its empty. None== there is no key;
         if self.image_position == String::default() {
+            println!("Proc");
             for (key, imager) in self.images.iter() {
                 imager.spromise_ref()?.ready()?;
                 self.image_position = key.clone();
@@ -209,6 +217,9 @@ impl Keys {
         // Keys[index] == Gives position inside Vec
         self.keys.get(self.index).cloned()
     }
+    pub fn current_mut(&mut self) -> Option<&mut String> {
+        self.keys.get_mut(self.index)
+    }
     pub fn len(&self) -> usize {
         self.keys.len()
     }
@@ -230,6 +241,34 @@ pub struct NetherPortals {
     // Misc
     mutate: bool,
     text_request: SPromise<Option<String>, Box<dyn Future<Output = ()> + Unpin>>,
+
+    // Image Modals
+    overworld_image_modal: ModalMachine,
+    nether_image_modal: ModalMachine,
+}
+
+// Modal Machines
+impl NetherPortals {
+    // Getters
+
+    // Experimental
+    pub fn image_modal_ref(&self, realm: Realm) -> &ModalMachine {
+        realm.matcher(&self.overworld_image_modal, &self.nether_image_modal)
+    }
+
+    pub fn image_modal_mut(&mut self, realm: &Realm) -> &mut ModalMachine {
+        realm.matcher(
+            &mut self.overworld_image_modal,
+            &mut self.nether_image_modal,
+        )
+    }
+
+    pub fn set_image_modal(&mut self, realm: &Realm, mm: ModalMachine) {
+        *self.image_modal_mut(realm) = mm;
+    }
+    // ============>
+
+    // Setters
 }
 
 impl NetherPortals {
@@ -243,8 +282,37 @@ impl NetherPortals {
             nether_position: Keys::default(),
             mutate: bool::default(),
             text_request: SPromise::make_no_promise(None),
+            overworld_image_modal: ModalMachine::default(),
+            nether_image_modal: ModalMachine::default(),
         }
     }
+    // Experimental
+    pub fn realm_ref(&self, realm: &Realm) -> &NetherPortalBTree {
+        realm.matcher(&self.overworld, &self.nether)
+    }
+    pub fn realm_mut(&mut self, realm: &Realm) -> &mut NetherPortalBTree {
+        realm.matcher(&mut self.overworld, &mut self.nether)
+    }
+
+    pub fn realm_pos(&self, realm: &Realm) -> Option<String> {
+        realm
+            .matcher(&self.ow_position, &self.nether_position)
+            .current()
+    }
+    pub fn realm_pos_mut(&mut self, realm: &Realm) -> Option<&mut String> {
+        realm
+            .matcher(&mut self.ow_position, &mut self.nether_position)
+            .current_mut()
+    }
+
+    //pub fn realm_pos_set(&mut self, realm: &Realm, pos: String) -> Option<()> {
+    //    *self.realm_pos_mut(realm)? = pos;
+    //    println!("We set the pos!, |{}|", self.realm_pos_mut(realm)?);
+
+    //    Some(())
+    //}
+
+    // ============>
 
     // Getters
     pub fn text_request_ref(
@@ -306,6 +374,8 @@ impl NetherPortals {
     // Increment&Decrement OverWorld Position
     pub fn ow_pos_up(&mut self) {
         let index = self.ow_position.get_index();
+        // TODO when the npt server was off, this panicked as an integer overflow
+        // // Fix in the future
         if index < self.ow_position.len() - 1 {
             self.ow_position.set_pos(index + 1)
         }

@@ -108,18 +108,6 @@ fn portal_text_displayer_mut(
         });
 }
 
-fn move_back_or_forth_buttons(nether_portals: &mut NetherPortals, ui: &mut Ui) {
-    if ui.button("Go Back").clicked() {
-        nether_portals.ow_pos_down();
-        nether_portals.neth_pos_down();
-    }
-
-    if ui.button("Go Forth").clicked() {
-        nether_portals.ow_pos_up();
-        nether_portals.neth_pos_up();
-    }
-}
-
 fn bool_button(ui: &mut Ui, name: &str, mut reset: bool) -> bool {
     if ui.button(name).clicked() {
         reset = true
@@ -174,7 +162,7 @@ pub fn displayer(nether_portals: &mut NetherPortals, unique: &mut Inc, ui: &mut 
     let mut mutate = nether_portals.get_mutate();
     ui.horizontal(|ui| {
         // buttons to control which direction to seek PT information
-        move_back_or_forth_buttons(nether_portals, ui);
+        //move_back_or_forth_buttons(nether_portals, ui);
 
         // Allows a Reset of the portal_text_displayer view
         reset = reset_button(ui);

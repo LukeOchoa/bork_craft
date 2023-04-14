@@ -6,8 +6,8 @@ use crate::{
     pages::{
         login::{login_page, LoginForm},
         nether_portals_page::{
-            display_images::display_nether_portal_images, page::display_nether_portals_page,
-            portals::NetherPortals,
+            display_images::display_nether_portal_images, download_images::*,
+            page::display_nether_portals_page, portals::NetherPortals,
         },
     },
     sessions::{current_session_time, SessionInfo, SessionTime},
@@ -16,6 +16,7 @@ use crate::{
         client_windows::{GenericWindow, Loglet},
         error_messages::ErrorMessage,
     },
+    Realm,
 };
 
 // Emilk Imports
@@ -95,8 +96,8 @@ impl BorkCraft {
     fn update_updaters(&mut self) {
         self.unique.reset();
         self.err_msg.try_update_log();
-        _ = self.session_info.try_update();
-        _ = self.nether_portals.try_update_npt();
+        self.session_info.try_update().ok();
+        self.nether_portals.try_update_npt().ok();
     }
 
     fn handle_pages(&mut self, ui: &mut Ui) {
@@ -110,6 +111,13 @@ impl BorkCraft {
                 );
             }
             "Nether Portals" => {
+                move_back_or_forth_buttons(
+                    &mut self.nether_portals,
+                    &self.runtime,
+                    &mut self.unique,
+                    self.err_msg.sender_clone(),
+                    ui,
+                );
                 display_nether_portals_page(
                     &mut self.nether_portals,
                     &mut self.unique,
@@ -126,18 +134,16 @@ impl BorkCraft {
     fn handle_image_pages(&mut self, ui: &mut Ui) {
         match &self.base_page.get_selected_option() as &str {
             "Login" => {}
-            "Nether Portals" => display_nether_portal_images(
-                &mut self.nether_portals,
-                &self.runtime,
-                self.err_msg.sender_clone(),
-                ui,
-            ),
+            "Nether Portals" => {
+                display_nether_portal_images(&mut self.nether_portals, &mut self.unique, ui)
+            }
             _ => {
                 ui.label("In development. Sorry...");
             }
         }
     }
 }
+
 fn real_init(
     session_info_sender: Sender<(SessionTime, Loglet)>,
     key_receiver: Receiver<String>,
@@ -180,6 +186,73 @@ fn handle_base_page(base_page: &mut ModalMachine, id: i64, ui: &mut Ui) {
     base_page.modal_machine(id, ui);
 }
 
+fn move_back_or_forth_buttons(
+    nps: &mut NetherPortals,
+    runtime: &tokio::runtime::Runtime,
+    unique: &mut Inc,
+    err_msg_sender: Sender<Loglet>,
+    ui: &mut Ui,
+) {
+    let mut clicked = false;
+    ui.horizontal(|ui| {
+        // Buttons to move the nether portals selections back or forth
+        if ui.button("Go Back").clicked() {
+            nps.ow_pos_down();
+            nps.neth_pos_down();
+            clicked = true;
+        }
+
+        if ui.button("Go Forth").clicked() {
+            nps.ow_pos_up();
+            nps.neth_pos_up();
+            clicked = true;
+        }
+    });
+    // On change, you need to check if there are images that should be downloaded
+    if clicked {
+        // Download the images
+        if let Some((np, position)) = should_we_reload_ow_images(nps) {
+            load_images(np, position, runtime, err_msg_sender.clone());
+        }
+
+        if let Some((np, position)) = should_we_reload_nether_images(nps) {
+            load_images(np, position, runtime, err_msg_sender);
+        }
+
+        // Reload/Remake ModalMachines
+        reload_image_mm(nps, &Realm::Overworld, unique.up_str());
+        reload_image_mm(nps, &Realm::Nether, unique.up_str());
+    }
+
+    // Display the ModalMachines
+    nps.image_modal_mut(&Realm::Nether)
+        .modal_machine(unique.up(), ui);
+    nps.image_modal_mut(&Realm::Overworld)
+        .modal_machine(unique.up(), ui);
+
+    change_image_by_user_input(nps, &Realm::Overworld);
+    change_image_by_user_input(nps, &Realm::Nether);
+}
+
+fn change_image_by_user_input(nps: &mut NetherPortals, realm: &Realm) -> Option<()> {
+    // If there is an event continue, otherwise return
+    nps.image_modal_mut(realm).use_event()?;
+
+    // Get the key to the current NetherPortal
+    let pos = &nps.realm_pos(realm)?;
+
+    // Get the new image position from ModalMachine
+    let new_pos = nps.image_modal_mut(realm).get_selected_option();
+
+    // Get the current NetherPortal
+    let np = nps.realm_mut(realm).get_mut(pos)?;
+
+    // Set the position of the newly (user) selected image
+    np.img_pos_set(new_pos);
+
+    Some(())
+}
+
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
@@ -200,6 +273,7 @@ impl eframe::App for BorkCraft {
             ScrollArea::vertical()
                 .id_source(self.unique.up())
                 .show(ui, |ui| {
+                    // Is this good?
                     self.handle_pages(ui);
                 });
         });
