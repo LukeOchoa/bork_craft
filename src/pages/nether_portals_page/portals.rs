@@ -154,7 +154,6 @@ impl NetherPortal {
     pub fn init_img_pos(&mut self) -> Option<()> {
         //! initialize the image position if its empty. None== there is no key;
         if self.image_position == String::default() {
-            println!("Proc");
             for (key, imager) in self.images.iter() {
                 imager.spromise_ref()?.ready()?;
                 self.image_position = key.clone();
@@ -245,9 +244,44 @@ pub struct NetherPortals {
     // Image Modals
     overworld_image_modal: ModalMachine,
     nether_image_modal: ModalMachine,
+
+    // NetherPortal Modals
+    realm_modal: ModalMachine,
 }
 
-// Modal Machines
+// NetherPortal ModalMachines
+impl NetherPortals {
+    // first: find out what the keys are actually called...
+    //
+    // then:
+    //
+    // get all keys from overworld & nether
+    // shove them into an array
+    // allow user to modal through the array
+    pub fn show_keys(&self) {
+        let mut keys: Vec<String> = Vec::new();
+        keys.append(&mut self.overworld.keys().map(|s| s.to_owned()).collect());
+        keys.append(&mut self.nether.keys().map(|s| s.to_owned()).collect());
+
+        keys.iter().for_each(|key| {
+            println!("Key: |{}|", key);
+        });
+    }
+    fn make_realm_modal_options(&self) -> Vec<String> {
+        let mut options: Vec<String> = self.overworld.keys().map(|s| s.to_owned()).collect();
+        let neth_keys: Vec<String> = self.overworld.keys().map(|s| s.to_owned()).collect();
+
+        let mut cnt = 0;
+        options.iter_mut().for_each(|key| {
+            *key = format!("{} & {}", key, neth_keys[cnt]);
+            cnt = cnt + 1;
+        });
+
+        options
+    }
+}
+
+// Image Modal Machines
 impl NetherPortals {
     // Getters
 
@@ -284,6 +318,7 @@ impl NetherPortals {
             text_request: SPromise::make_no_promise(None),
             overworld_image_modal: ModalMachine::default(),
             nether_image_modal: ModalMachine::default(),
+            realm_modal: ModalMachine::default(),
         }
     }
     // Experimental

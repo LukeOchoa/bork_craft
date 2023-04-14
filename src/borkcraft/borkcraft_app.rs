@@ -6,8 +6,10 @@ use crate::{
     pages::{
         login::{login_page, LoginForm},
         nether_portals_page::{
-            display_images::display_nether_portal_images, download_images::*,
-            page::display_nether_portals_page, portals::NetherPortals,
+            display_images::{change_image_by_user_input, display_nether_portal_images},
+            download_images::*,
+            page::display_nether_portals_page,
+            portals::NetherPortals,
         },
     },
     sessions::{current_session_time, SessionInfo, SessionTime},
@@ -98,6 +100,10 @@ impl BorkCraft {
         self.err_msg.try_update_log();
         self.session_info.try_update().ok();
         self.nether_portals.try_update_npt().ok();
+
+        // If there is a mm event, update the image that should be displayed
+        change_image_by_user_input(&mut self.nether_portals, &Realm::Overworld);
+        change_image_by_user_input(&mut self.nether_portals, &Realm::Nether);
     }
 
     fn handle_pages(&mut self, ui: &mut Ui) {
@@ -224,39 +230,20 @@ fn move_back_or_forth_buttons(
         reload_image_mm(nps, &Realm::Nether, unique.up_str());
     }
 
-    // Display the ModalMachines
-    nps.image_modal_mut(&Realm::Nether)
-        .modal_machine(unique.up(), ui);
-    nps.image_modal_mut(&Realm::Overworld)
-        .modal_machine(unique.up(), ui);
-
-    change_image_by_user_input(nps, &Realm::Overworld);
-    change_image_by_user_input(nps, &Realm::Nether);
-}
-
-fn change_image_by_user_input(nps: &mut NetherPortals, realm: &Realm) -> Option<()> {
-    // If there is an event continue, otherwise return
-    nps.image_modal_mut(realm).use_event()?;
-
-    // Get the key to the current NetherPortal
-    let pos = &nps.realm_pos(realm)?;
-
-    // Get the new image position from ModalMachine
-    let new_pos = nps.image_modal_mut(realm).get_selected_option();
-
-    // Get the current NetherPortal
-    let np = nps.realm_mut(realm).get_mut(pos)?;
-
-    // Set the position of the newly (user) selected image
-    np.img_pos_set(new_pos);
-
-    Some(())
+    //// Display the ModalMachines
+    //nps.image_modal_mut(&Realm::Nether)
+    //    .modal_machine(unique.up(), ui);
+    //nps.image_modal_mut(&Realm::Overworld)
+    //    .modal_machine(unique.up(), ui);
 }
 
 impl eframe::App for BorkCraft {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("TopBoi").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                if ui.button("Show Keys").clicked() {
+                    self.nether_portals.show_keys();
+                }
                 handle_base_page(&mut self.base_page, self.unique.up(), ui);
                 display_session_time_left(
                     &mut self.session_info,

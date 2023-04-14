@@ -42,6 +42,21 @@ impl Realm {
 }
 
 // Traits
+pub trait HandleOption<T, X> {
+    fn on_none(self, f: impl FnOnce() -> X) -> Option<T>;
+}
+impl<T, X> HandleOption<T, X> for Option<T> {
+    fn on_none(self, f: impl FnOnce() -> X) -> Option<T> {
+        if let None = self {
+            f();
+            return None;
+        }
+        self
+    }
+}
+pub fn option(f: impl FnOnce() -> Option<()>) -> Option<()> {
+    f()
+}
 pub trait HandleError<T> {
     fn consume_error(self, err_msg: &mut ErrorMessage);
 

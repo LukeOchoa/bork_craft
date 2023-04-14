@@ -58,7 +58,6 @@ pub fn some_retained_image(np: &mut NetherPortal) -> Option<&RetainedImage> {
 
     // Get the position/key
     let key = np.image_pos_ref();
-    println!("another image pos: |{}|", key);
 
     // dot into BTree of (struct Imager) -> into a specific (struct SPromise) -> check if its done downloading -> get a reference to the image
     let retained_image = np
@@ -197,15 +196,10 @@ pub fn reload_image_mm(nps: &mut NetherPortals, realm: &crate::Realm, id: String
     let selected_option = options.first()?.to_owned();
 
     // Create a struct ModalMachine to assign
-    let mm = ModalMachine::new(
-        selected_option,
-        options,
-        "Overworld Images List".to_string(),
-    );
+    let mm = ModalMachine::new(selected_option, options, String::default());
 
     // Assign the current ModalMachine
     nps.set_image_modal(realm, mm);
-    println!("Finished!");
 
     Some(())
 }
