@@ -6,5 +6,6 @@ fn main() {
         "BorkCraft",
         option,
         Box::new(|_cc| Box::new(BorkCraft::default())),
-    );
+    )
+    .unwrap();
 }

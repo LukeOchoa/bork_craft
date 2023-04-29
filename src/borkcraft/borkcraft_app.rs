@@ -3,6 +3,7 @@ use crate::{
     eframe_tools::ModalMachine,
     get_tokio_runtime,
     increment::Inc,
+    option,
     pages::{
         login::{login_page, LoginForm},
         nether_portals_page::{
@@ -18,7 +19,7 @@ use crate::{
         client_windows::{GenericWindow, Loglet},
         error_messages::ErrorMessage,
     },
-    Realm,
+    HandleOption, Realm,
 };
 
 // Emilk Imports
@@ -94,6 +95,23 @@ impl Default for BorkCraft {
     }
 }
 
+fn realm_modal(nps: &mut NetherPortals, id: i64, ui: &mut Ui) {
+    nps.realm_modal_mut().modal_machine(id, ui);
+
+    option(|| {
+        // Check for an event; if None, return
+        nps.realm_modal_mut().use_event()?;
+
+        // Get user selected netherportals
+        let pos = nps.realm_modal_mut().get_selected_option();
+
+        // set the current netherportal to the recently selected
+        nps.realm_pos_set2(pos);
+
+        Some(())
+    });
+}
+
 impl BorkCraft {
     fn update_updaters(&mut self) {
         self.unique.reset();
@@ -117,6 +135,7 @@ impl BorkCraft {
                 );
             }
             "Nether Portals" => {
+                realm_modal(&mut self.nether_portals, self.unique.up(), ui);
                 move_back_or_forth_buttons(
                     &mut self.nether_portals,
                     &self.runtime,

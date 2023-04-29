@@ -226,6 +226,50 @@ impl Keys {
 
 pub type NetherPortalBTree = BTreeMap<String, NetherPortal>;
 
+pub struct ModalMachineX {
+    mm: ModalMachine,
+    options_x: Vec<(String, String)>,
+}
+
+// A wrapper for ModalMachine (ModalMachineX)
+impl ModalMachineX {
+    pub fn default() -> Self {
+        Self {
+            mm: ModalMachine::default(),
+            options_x: Vec::default(),
+        }
+    }
+    pub fn get_selected_option(&self) -> (String, String) {
+        // Each options is inlayed with a string number as the first character
+        let pos: usize = self
+            .mm
+            .get_selected_option()
+            .remove(0)
+            .to_string()
+            .parse()
+            .unwrap();
+
+        self.options_x_ref().get(pos).unwrap().clone()
+    }
+
+    pub fn use_event(&mut self) -> Option<()> {
+        self.mm.use_event()
+    }
+
+    pub fn modal_machine(&mut self, id: i64, ui: &mut eframe::egui::Ui) {
+        self.mm.modal_machine(id, ui);
+    }
+    fn options_x_ref(&self) -> &Vec<(String, String)> {
+        &self.options_x
+    }
+    fn options_x_mut(&mut self) -> &mut Vec<(String, String)> {
+        &mut self.options_x
+    }
+    pub fn set_options(&mut self, options_x: Vec<(String, String)>) {
+        *self.options_x_mut() = options_x;
+    }
+}
+
 // The Keys of NetherPortals BTreeMap members should be the PortalText.true_name
 pub struct NetherPortals {
     overworld: BTreeMap<String, NetherPortal>,
@@ -246,7 +290,7 @@ pub struct NetherPortals {
     nether_image_modal: ModalMachine,
 
     // NetherPortal Modals
-    realm_modal: ModalMachine,
+    realm_modal: ModalMachineX,
 }
 
 // NetherPortal ModalMachines
@@ -267,17 +311,48 @@ impl NetherPortals {
             println!("Key: |{}|", key);
         });
     }
-    fn make_realm_modal_options(&self) -> Vec<String> {
+    fn make_realm_modal_options(&self) -> (Vec<String>, Vec<(String, String)>) {
+        let mut options_x: Vec<(String, String)> = Vec::default();
         let mut options: Vec<String> = self.overworld.keys().map(|s| s.to_owned()).collect();
-        let neth_keys: Vec<String> = self.overworld.keys().map(|s| s.to_owned()).collect();
+        let neth_keys: Vec<String> = self.nether.keys().map(|s| s.to_owned()).collect();
 
-        let mut cnt = 0;
-        options.iter_mut().for_each(|key| {
-            *key = format!("{} & {}", key, neth_keys[cnt]);
-            cnt = cnt + 1;
-        });
+        for (index, key) in options.iter_mut().enumerate() {
+            options_x.push((key.clone(), neth_keys[index].clone()));
+            *key = format!("{}: {} & {}", index, key, neth_keys[index]);
+        }
 
-        options
+        //let mut cnt = 0;
+        //options.iter_mut().for_each(|key| {
+        //    // create a
+        //    cnt = cnt + 1;
+        //});
+
+        // TODO DELETE ME LATER
+        || -> () {
+            (0..=99).into_iter().for_each(|i| {
+                options.push(i.to_string());
+            });
+        }();
+
+        (options, options_x)
+    }
+    pub fn realm_modal_mut(&mut self) -> &mut ModalMachineX {
+        &mut self.realm_modal
+    }
+    pub fn inner_mm_mut(&mut self) -> &mut ModalMachine {
+        &mut self.realm_modal.mm
+    }
+    pub fn realm_modal_set(&mut self) {
+        // Create the ModalMachine Fields
+        let (options, options_x) = self.make_realm_modal_options();
+        let selected_option = options.first().unwrap_or(&String::default()).to_owned();
+        let name = String::default();
+
+        // Initialize the "inner" ModalMachine
+        *self.inner_mm_mut() = ModalMachine::new(selected_option, options, name);
+
+        // Initialize the ModalMachine wrapper's options
+        self.realm_modal_mut().set_options(options_x);
     }
 }
 
@@ -318,7 +393,7 @@ impl NetherPortals {
             text_request: SPromise::make_no_promise(None),
             overworld_image_modal: ModalMachine::default(),
             nether_image_modal: ModalMachine::default(),
-            realm_modal: ModalMachine::default(),
+            realm_modal: ModalMachineX::default(),
         }
     }
     // Experimental
@@ -334,10 +409,19 @@ impl NetherPortals {
             .matcher(&self.ow_position, &self.nether_position)
             .current()
     }
-    pub fn realm_pos_mut(&mut self, realm: &Realm) -> Option<&mut String> {
+    fn realm_pos_mut(&mut self, realm: &Realm) -> Option<&mut String> {
         realm
             .matcher(&mut self.ow_position, &mut self.nether_position)
             .current_mut()
+    }
+    pub fn realm_pos_set(&mut self, realm: &Realm, pos: String) -> Option<()> {
+        *self.realm_pos_mut(realm)? = pos;
+        Some(())
+    }
+    pub fn realm_pos_set2(&mut self, pos: (String, String)) -> Option<()> {
+        *self.realm_pos_mut(&Realm::Overworld)? = pos.0;
+        *self.realm_pos_mut(&Realm::Nether)? = pos.1;
+        Some(())
     }
 
     //pub fn realm_pos_set(&mut self, realm: &Realm, pos: String) -> Option<()> {
@@ -544,6 +628,8 @@ impl NetherPortals {
     pub fn try_update_npt(&mut self) -> Result<(), MagicError> {
         while let Ok(nether_portal_text) = self.npt_receiver().try_recv() {
             self.consume_npt(nether_portal_text);
+            // If npt is updated then you also need to update is dependencies
+            self.realm_modal_set();
         }
         Ok(())
     }

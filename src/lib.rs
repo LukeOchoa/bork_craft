@@ -54,7 +54,7 @@ impl<T, X> HandleOption<T, X> for Option<T> {
         self
     }
 }
-pub fn option(f: impl FnOnce() -> Option<()>) -> Option<()> {
+pub fn option(mut f: impl FnMut() -> Option<()>) -> Option<()> {
     f()
 }
 pub trait HandleError<T> {

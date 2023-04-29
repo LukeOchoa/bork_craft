@@ -17,8 +17,11 @@ use std::future::Future;
 type NetherPortalTextBunch = HashMap<String, NetherPortalText>;
 
 fn batch_fetch_nether_portal_text(offset: i32, limit: i32) -> Result<ureq::Response, ureq::Error> {
-    let route = Urls::default(Routes::GetNetherPortalBunch);
-    let url = &format!("{}?offset={}&limit={}", route, offset, limit);
+    // TODO Change this...?
+    let route = &format!("http://localhost:3001/getnetherportalstextinformation");
+    //let route = Urls::default(Routes::GetNetherPortalBunch);
+    let url = &format!("{}?orderby={}&limit={}", route, offset, limit);
+    println!("url: {}", url);
 
     ureq::get(url).call()
 }
